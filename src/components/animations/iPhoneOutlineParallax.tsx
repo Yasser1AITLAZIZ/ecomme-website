@@ -18,7 +18,7 @@ interface iPhoneOutlineParallaxProps {
  * Stylized iPhone outline with parallax effect
  * Similar to the reference site with outline-based design
  */
-export function iPhoneOutlineParallax({
+export function IPhoneOutlineParallax({
   className,
   model = 'iPhone 15 Pro Max',
   price = '1,199 MAD',
