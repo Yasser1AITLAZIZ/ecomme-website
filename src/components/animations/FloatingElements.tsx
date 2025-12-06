@@ -3,15 +3,21 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
+import { isMobile, prefersReducedMotion } from '@/lib/utils/device';
 
 export function FloatingElements() {
   const [mounted, setMounted] = useState(false);
+  const [shouldRender, setShouldRender] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    // Disable on mobile or if user prefers reduced motion
+    if (!isMobile() && !prefersReducedMotion()) {
+      setShouldRender(true);
+    }
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted || !shouldRender) return null;
 
   const positions = Array.from({ length: 6 }, () => ({
     x: Math.random() * 100,

@@ -37,6 +37,12 @@ const nextConfig = {
     // Optimize package imports
     optimizePackageImports: ['lucide-react', 'framer-motion'],
   },
+
+  // Performance optimizations
+  compress: true,
+  
+  // Optimize fonts
+  optimizeFonts: true,
 }
 
 module.exports = nextConfig

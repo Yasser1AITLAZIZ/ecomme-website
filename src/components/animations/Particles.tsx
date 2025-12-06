@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { isMobile, prefersReducedMotion } from '@/lib/utils/device';
 
 interface ParticleProps {
   left: number;
@@ -22,12 +23,17 @@ function Particle({ left, delay }: ParticleProps) {
 
 export function Particles() {
   const [mounted, setMounted] = useState(false);
+  const [shouldRender, setShouldRender] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    // Disable on mobile or if user prefers reduced motion
+    if (!isMobile() && !prefersReducedMotion()) {
+      setShouldRender(true);
+    }
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted || !shouldRender) return null;
 
   const particles = [
     { left: 10, delay: 0 },

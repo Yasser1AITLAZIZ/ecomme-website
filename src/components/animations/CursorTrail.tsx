@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { isMobile, hasTouch } from '@/lib/utils/device';
 
 interface CursorPoint {
   x: number;
@@ -12,8 +13,18 @@ interface CursorPoint {
 export function CursorTrail() {
   const [cursorPoints, setCursorPoints] = useState<CursorPoint[]>([]);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isEnabled, setIsEnabled] = useState(false);
 
   useEffect(() => {
+    // Disable on mobile/touch devices
+    if (isMobile() || hasTouch()) {
+      return;
+    }
+    setIsEnabled(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isEnabled) return;
     let pointId = 0;
     const points: CursorPoint[] = [];
 
@@ -41,6 +52,8 @@ export function CursorTrail() {
       window.removeEventListener('mousemove', handleMouseMove);
     };
   }, []);
+
+  if (!isEnabled) return null;
 
   return (
     <>

@@ -34,6 +34,11 @@ export function FeaturedProducts3D({ products, loading = false }: FeaturedProduc
   });
 
   useEffect(() => {
+    // Only enable mouse tracking on desktop
+    if (typeof window === 'undefined' || window.innerWidth < 1024) {
+      return;
+    }
+
     const handleMouseMove = (e: MouseEvent) => {
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
@@ -131,9 +136,10 @@ export function FeaturedProducts3D({ products, loading = false }: FeaturedProduc
           ) : products.length > 0 ? (
             <motion.div
               style={{
-                rotateX,
-                rotateY,
-                transformStyle: 'preserve-3d',
+                // Only apply 3D transforms on desktop
+                rotateX: typeof window !== 'undefined' && window.innerWidth >= 1024 ? rotateX : 0,
+                rotateY: typeof window !== 'undefined' && window.innerWidth >= 1024 ? rotateY : 0,
+                transformStyle: typeof window !== 'undefined' && window.innerWidth >= 1024 ? 'preserve-3d' : 'flat',
               }}
               className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
             >
