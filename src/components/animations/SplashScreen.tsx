@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Plus, Star, Zap, Award, TrendingUp } from 'lucide-react';
+import { isMobile } from '@/lib/utils/device';
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -11,19 +12,24 @@ interface SplashScreenProps {
 export function SplashScreen({ onComplete }: SplashScreenProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [language, setLanguage] = useState<'en' | 'fr' | 'ar'>('en');
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
 
   useEffect(() => {
+    const mobile = isMobile();
+    setIsMobileDevice(mobile);
+    
     // Get language from localStorage
     const savedLang = localStorage.getItem('language') as 'en' | 'fr' | 'ar';
     if (savedLang && ['en', 'fr', 'ar'].includes(savedLang)) {
       setLanguage(savedLang);
     }
 
-    // Complete after 3.5 seconds - more time to showcase animations
+    // Faster on mobile (1.5s) vs desktop (2.5s)
+    const splashDuration = mobile ? 1500 : 2500;
     const completeTimer = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(onComplete, 600);
-    }, 3500);
+      setTimeout(onComplete, 300);
+    }, splashDuration);
 
     return () => {
       clearTimeout(completeTimer);
@@ -98,8 +104,8 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
               }}
             />
             
-            {/* Floating Golden Particles */}
-            {[...Array(20)].map((_, i) => (
+            {/* Floating Golden Particles - Reduced on mobile */}
+            {[...Array(isMobileDevice ? 8 : 20)].map((_, i) => (
               <motion.div
                 key={`particle-${i}`}
                 className="absolute rounded-full"
@@ -277,8 +283,8 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
                     </div>
                   </motion.div>
 
-                  {/* Floating Golden Stars - Enhanced */}
-                  {[...Array(12)].map((_, i) => (
+                  {/* Floating Golden Stars - Reduced on mobile */}
+                  {[...Array(isMobileDevice ? 6 : 12)].map((_, i) => (
                     <motion.div
                       key={i}
                       className="absolute"
