@@ -31,25 +31,14 @@ export function ScrolliPhoneParallax({
   const springConfig = { stiffness: 100, damping: 30, restDelta: 0.001 };
   const smoothProgress = useSpring(scrollYProgress, springConfig);
 
-  // Calculate movement based on direction
-  const getTransform = () => {
-    const baseValue = useTransform(smoothProgress, [0, 1], [0, 100 * speed]);
-    
-    switch (direction) {
-      case 'left':
-        return { x: useTransform(baseValue, (v) => -v), y: 0 };
-      case 'right':
-        return { x: baseValue, y: 0 };
-      case 'up':
-        return { x: 0, y: useTransform(baseValue, (v) => -v) };
-      case 'down':
-        return { x: 0, y: baseValue };
-      default:
-        return { x: baseValue, y: 0 };
-    }
-  };
-
-  const { x, y } = getTransform();
+  // Calculate movement based on direction - all hooks must be called unconditionally
+  const baseValue = useTransform(smoothProgress, [0, 1], [0, 100 * speed]);
+  const leftX = useTransform(baseValue, (v) => -v);
+  const upY = useTransform(baseValue, (v) => -v);
+  
+  // Select the appropriate transform based on direction
+  const x = direction === 'left' ? leftX : direction === 'right' ? baseValue : 0;
+  const y = direction === 'up' ? upY : direction === 'down' ? baseValue : 0;
 
   // Rotation based on scroll
   const rotate = useTransform(

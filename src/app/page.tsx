@@ -6,8 +6,6 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { ScrollReveal } from '@/components/animations/ScrollReveal';
 import { ParallaxSection } from '@/components/animations/ParallaxSection';
-import { iPhoneOutline } from '@/components/animations/iPhoneOutline';
-import { iPhoneOutlineParallax } from '@/components/animations/iPhoneOutlineParallax';
 import { ProductCard } from '@/components/product/ProductCard';
 import { FloatingPhone } from '@/components/animations/FloatingPhone';
 import { FloatingCards } from '@/components/animations/FloatingCards';
@@ -165,16 +163,6 @@ export default function HomePage() {
         </motion.div>
       </section>
 
-      {/* Stylized iPhone Outline Animation */}
-      <section className="relative bg-obsidian-950 overflow-hidden">
-        <iPhoneOutline
-          model={t.home.showcase.iphone15Pro}
-          price={t.home.showcase.pricePro}
-          color={t.home.showcase.naturalTitanium}
-          speed={0.3}
-        />
-      </section>
-
       {/* Categories Section */}
       <section className="py-20 bg-obsidian-900">
         <div className="container mx-auto px-4">
@@ -212,32 +200,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* iPhone Outline Parallax Section */}
-      <section className="relative bg-obsidian-950 overflow-hidden">
-        <iPhoneOutlineParallax
-          model={t.home.showcase.iphone15ProMax}
-          price={t.home.showcase.priceProMax}
-          color={t.home.showcase.blueTitanium}
-          sticky={true}
-          direction="right"
-        />
-      </section>
-
       {/* Our Priorities Section - Prominently Displayed */}
       <OurPriorities />
 
       {/* Featured Products Section - 3D Version */}
       <FeaturedProducts3D products={featuredProducts} loading={loading} />
-
-      {/* Final iPhone Outline Animation */}
-      <section className="relative bg-obsidian-950 overflow-hidden">
-        <iPhoneOutline
-          model={t.home.showcase.iphone15}
-          price={t.home.showcase.price15}
-          color={t.home.showcase.pink}
-          speed={0.4}
-        />
-      </section>
 
       {/* Stats Section */}
       <StatsSection />

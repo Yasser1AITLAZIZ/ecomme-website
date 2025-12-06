@@ -6,7 +6,7 @@ import { Language, translations } from './translations';
 interface I18nContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: typeof translations.en;
+  t: typeof translations.en | typeof translations.fr | typeof translations.ar;
   isRTL: boolean;
 }
 

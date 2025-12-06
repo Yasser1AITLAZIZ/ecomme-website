@@ -17,7 +17,7 @@ interface iPhoneOutlineProps {
  * Stylized iPhone outline animation component
  * Creates animated iPhone outlines that move and transform on scroll
  */
-export function iPhoneOutline({
+export function IPhoneOutline({
   className,
   model = 'iPhone 15 Pro',
   price = '999 MAD',
