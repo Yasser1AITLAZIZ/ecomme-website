@@ -1,5 +1,5 @@
 """Cart routes."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from typing import List
 from app.api.v1.deps import get_db, get_current_user, validate_uuid_param
 from app.schemas.cart import (
@@ -21,6 +21,7 @@ router = APIRouter(prefix="/cart", tags=["Cart"])
 @router.get("", response_model=CartResponse)
 @rate_limit("100/minute")
 async def get_cart(
+    request: Request,
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
@@ -61,6 +62,7 @@ async def get_cart(
 @router.post("/items", response_model=CartItem, status_code=201)
 @rate_limit("60/minute")
 async def add_cart_item(
+    request: Request,
     item: CartItemCreate,
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user)
@@ -104,6 +106,7 @@ async def add_cart_item(
 @router.put("/items/{item_id}", response_model=CartItem)
 @rate_limit("60/minute")
 async def update_cart_item(
+    request: Request,
     item_id: str = Depends(validate_uuid_param),
     item_update: CartItemUpdate = None,
     db: Client = Depends(get_db),
@@ -155,6 +158,7 @@ async def update_cart_item(
 @router.delete("/items/{item_id}", status_code=204)
 @rate_limit("60/minute")
 async def remove_cart_item(
+    request: Request,
     item_id: str = Depends(validate_uuid_param),
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user)
@@ -176,6 +180,7 @@ async def remove_cart_item(
 @router.post("/sync", response_model=CartResponse)
 @rate_limit("20/hour")
 async def sync_cart(
+    request: Request,
     sync_request: CartSyncRequest,
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user)
@@ -224,6 +229,7 @@ async def sync_cart(
 @router.delete("", status_code=204)
 @rate_limit("20/hour")
 async def clear_cart(
+    request: Request,
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user)
 ):

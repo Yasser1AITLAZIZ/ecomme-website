@@ -9,8 +9,6 @@ import { SplashScreen } from '@/components/animations/SplashScreen';
 import { ScrollProgress } from '@/components/ui/ScrollProgress';
 import { ToastProvider } from '@/components/ui/Toast';
 import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
-import { LiveVisitorCounter } from '@/components/ui/LiveVisitorCounter';
-import { PriceDropAlert } from '@/components/ui/PriceDropAlert';
 import { ScrollToTop } from '@/components/ui/ScrollToTop';
 import { ScrollingTickerBar } from '@/components/ui/ScrollingTickerBar';
 import { isMobile, prefersReducedMotion } from '@/lib/utils/device';
@@ -47,8 +45,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               </Suspense>
             )}
             <ScrollProgress />
-            <LiveVisitorCounter />
-            <PriceDropAlert />
             <FloatingActionButton />
             <ScrollToTop />
             {/* Lazy load heavy background animations */}

@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str
     SUPABASE_JWT_SECRET: str
     SUPABASE_STORAGE_BUCKET: str = "product-images"
+    SUPABASE_POSTGREST_TIMEOUT: int = 30
+    SUPABASE_STORAGE_TIMEOUT: int = 30
+    SUPABASE_SCHEMA: str = "public"
     
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:3000"

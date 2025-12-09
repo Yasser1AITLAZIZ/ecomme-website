@@ -1,5 +1,5 @@
 """User addresses routes."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from typing import List
 from app.api.v1.deps import get_db, get_current_user, validate_uuid_param
 from app.schemas.user import UserAddress, UserAddressCreate, UserAddressUpdate
@@ -13,6 +13,7 @@ router = APIRouter(prefix="/users/me/addresses", tags=["Addresses"])
 @router.get("", response_model=List[UserAddress])
 @rate_limit("100/minute")
 async def get_addresses(
+    request: Request,
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
@@ -32,6 +33,7 @@ async def get_addresses(
 @router.post("", response_model=UserAddress, status_code=201)
 @rate_limit("20/hour")
 async def create_address(
+    request: Request,
     address: UserAddressCreate,
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user)
@@ -59,6 +61,7 @@ async def create_address(
 @router.put("/{address_id}", response_model=UserAddress)
 @rate_limit("60/minute")
 async def update_address(
+    request: Request,
     address_id: str = Depends(validate_uuid_param),
     address_update: UserAddressUpdate = None,
     db: Client = Depends(get_db),
@@ -101,6 +104,7 @@ async def update_address(
 @router.delete("/{address_id}", status_code=204)
 @rate_limit("60/minute")
 async def delete_address(
+    request: Request,
     address_id: str = Depends(validate_uuid_param),
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user)

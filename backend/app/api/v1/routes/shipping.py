@@ -1,5 +1,5 @@
 """Shipping routes."""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from typing import List
 from app.api.v1.deps import get_db
 from app.schemas.shipping import (
@@ -17,6 +17,7 @@ router = APIRouter(prefix="/shipping", tags=["Shipping"])
 @router.get("/methods", response_model=List[ShippingMethod])
 @rate_limit("100/minute")
 async def get_shipping_methods(
+    request: Request,
     db: Client = Depends(get_db)
 ):
     """
@@ -34,6 +35,7 @@ async def get_shipping_methods(
 @router.post("/calculate", response_model=ShippingCalculationResponse)
 @rate_limit("100/minute")
 async def calculate_shipping(
+    http_request: Request,
     request: ShippingCalculationRequest,
     db: Client = Depends(get_db)
 ):

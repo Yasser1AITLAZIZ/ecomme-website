@@ -1,5 +1,5 @@
 """Wishlist routes."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from typing import List
 from app.api.v1.deps import get_db, get_current_user, validate_uuid_param
 from app.schemas.wishlist import WishlistItem, WishlistItemCreate
@@ -13,6 +13,7 @@ router = APIRouter(prefix="/wishlist", tags=["Wishlist"])
 @router.get("", response_model=List[WishlistItem])
 @rate_limit("100/minute")
 async def get_wishlist(
+    request: Request,
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
@@ -78,6 +79,7 @@ async def get_wishlist(
 @router.post("/items", response_model=WishlistItem, status_code=201)
 @rate_limit("60/minute")
 async def add_to_wishlist(
+    request: Request,
     item: WishlistItemCreate,
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user)
@@ -143,6 +145,7 @@ async def add_to_wishlist(
 @router.delete("/items/{item_id}", status_code=204)
 @rate_limit("60/minute")
 async def remove_from_wishlist(
+    request: Request,
     item_id: str = Depends(validate_uuid_param),
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user)

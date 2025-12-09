@@ -1,5 +1,5 @@
 """Product images routes."""
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request
 from typing import List
 from app.api.v1.deps import get_db, get_current_user, validate_uuid_param
 from app.core.permissions import require_admin
@@ -15,6 +15,7 @@ router = APIRouter(prefix="/images", tags=["Images"])
 @router.get("/product/{product_id}", response_model=List[ProductImage])
 @rate_limit("100/minute")
 async def get_product_images(
+    request: Request,
     product_id: str = Depends(validate_uuid_param),
     db: Client = Depends(get_db)
 ):
@@ -39,6 +40,7 @@ async def get_product_images(
 @router.post("/upload", response_model=ProductImage, status_code=201)
 @rate_limit("20/hour")
 async def upload_image(
+    request: Request,
     product_id: str,
     image: UploadFile = File(...),
     is_primary: bool = False,

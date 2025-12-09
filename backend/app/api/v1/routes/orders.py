@@ -16,6 +16,7 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 @router.get("", response_model=List[Order])
 @rate_limit("100/minute")
 async def get_orders(
+    request: Request,
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
@@ -100,6 +101,7 @@ async def get_orders(
 @router.get("/{order_id}", response_model=Order)
 @rate_limit("100/minute")
 async def get_order(
+    request: Request,
     order_id: str = Depends(validate_uuid_param),
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user)
@@ -313,6 +315,7 @@ async def create_order(
 @router.put("/{order_id}/status", response_model=Order)
 @rate_limit("60/minute")
 async def update_order_status(
+    request: Request,
     order_id: str = Depends(validate_uuid_param),
     status_update: OrderStatusUpdate = None,
     db: Client = Depends(get_db),

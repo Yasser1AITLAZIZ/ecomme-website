@@ -16,7 +16,6 @@ import { Button } from '@/components/ui/Button';
 import { AnimatedGradientText } from '@/components/ui/AnimatedGradientText';
 import { MagneticButton } from '@/components/ui/MagneticButton';
 import { StatsSection } from '@/components/ui/StatsSection';
-import { PopupOffer } from '@/components/ui/PopupOffer';
 import { TestimonialCarousel } from '@/components/ui/TestimonialCarousel';
 import { ProductSpotlight } from '@/components/ui/ProductSpotlight';
 import { CountdownTimer } from '@/components/ui/CountdownTimer';
@@ -234,13 +233,6 @@ export default function HomePage() {
 
       {/* Store Location Section */}
       <StoreLocation />
-
-      {/* Popup Offer */}
-      <PopupOffer
-        discount={15}
-        code="WELCOME15"
-        delay={3000}
-      />
 
       {/* CTA Section */}
       <ParallaxSection speed={0.3}>

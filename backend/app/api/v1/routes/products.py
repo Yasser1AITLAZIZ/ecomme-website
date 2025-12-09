@@ -1,5 +1,5 @@
 """Product routes."""
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
 from typing import Optional, List
 from app.api.v1.deps import get_db, get_current_user_optional, validate_uuid_param
 from app.core.permissions import require_admin
@@ -16,6 +16,7 @@ router = APIRouter(prefix="/products", tags=["Products"])
 @router.get("", response_model=List[Product])
 @rate_limit("100/minute")
 async def list_products(
+    request: Request,
     db: Client = Depends(get_db),
     category: Optional[str] = Query(None),
     brand: Optional[str] = Query(None),
@@ -31,30 +32,70 @@ async def list_products(
     Returns:
         List of products
     """
-    query = db.table("products").select("*")
-    
-    # Apply filters
-    query = query.eq("is_active", True).is_("deleted_at", "null")
-    
-    if category:
-        query = query.eq("category_id", category)
-    if brand:
-        query = query.eq("brand", brand)
-    if featured is not None:
-        query = query.eq("is_featured", featured)
-    if search:
-        search_clean = sanitize_input(search)
-        query = query.or_(f"name.ilike.%{search_clean}%,description.ilike.%{search_clean}%")
-    
-    # Pagination
-    offset = (page - 1) * per_page
-    query = query.range(offset, offset + per_page - 1)
-    
-    # Order by created_at desc
-    query = query.order("created_at", desc=True)
-    
-    response = query.execute()
-    return [Product(**item) for item in response.data]
+    try:
+        query = db.table("products").select("*")
+        
+        # Apply filters
+        query = query.eq("is_active", True).is_("deleted_at", "null")
+        
+        if category:
+            query = query.eq("category_id", category)
+        if brand:
+            query = query.eq("brand", brand)
+        if featured is not None:
+            query = query.eq("is_featured", featured)
+        if search:
+            search_clean = sanitize_input(search)
+            query = query.or_(f"name.ilike.%{search_clean}%,description.ilike.%{search_clean}%")
+        
+        # Pagination
+        offset = (page - 1) * per_page
+        query = query.range(offset, offset + per_page - 1)
+        
+        # Order by created_at desc
+        query = query.order("created_at", desc=True)
+        
+        response = query.execute()
+        
+        # Convert to Product schema with error handling
+        products = []
+        for item in response.data or []:
+            try:
+                # Ensure required fields have defaults if missing
+                if "sku" not in item or not item["sku"]:
+                    item["sku"] = f"SKU-{item.get('id', 'unknown')}"
+                if "slug" not in item or not item["slug"]:
+                    # Generate slug from name if missing
+                    name = item.get("name", "product")
+                    item["slug"] = name.lower().replace(" ", "-").replace("'", "")
+                
+                # Ensure Decimal fields are properly handled
+                if "price" in item and item["price"] is not None:
+                    item["price"] = str(item["price"])
+                if "compare_at_price" in item and item["compare_at_price"] is not None:
+                    item["compare_at_price"] = str(item["compare_at_price"])
+                if "cost_price" in item and item["cost_price"] is not None:
+                    item["cost_price"] = str(item["cost_price"])
+                if "weight" in item and item["weight"] is not None:
+                    item["weight"] = str(item["weight"])
+                
+                products.append(Product(**item))
+            except Exception as e:
+                # Log error but continue with other products
+                import structlog
+                logger = structlog.get_logger()
+                logger.error("Failed to parse product", product_id=item.get("id"), error=str(e))
+                continue
+        
+        return products
+    except Exception as e:
+        import structlog
+        logger = structlog.get_logger()
+        logger.error("Error fetching products", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch products: {str(e)}"
+        )
 
 
 @router.get("/{product_id}", response_model=Product)
@@ -87,6 +128,7 @@ async def get_product(
 @router.post("", response_model=Product, status_code=201)
 @rate_limit("20/hour")
 async def create_product(
+    request: Request,
     product: ProductCreate,
     db: Client = Depends(get_db),
     current_user = Depends(require_admin)

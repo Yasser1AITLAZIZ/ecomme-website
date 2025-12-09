@@ -1,5 +1,5 @@
 """Coupon routes."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from app.api.v1.deps import get_db, get_current_user_optional
 from app.schemas.coupon import (
     CouponValidationRequest,
@@ -18,6 +18,7 @@ router = APIRouter(prefix="/coupons", tags=["Coupons"])
 @router.get("/{code}", response_model=CouponValidationResponse)
 @rate_limit("60/minute")
 async def validate_coupon(
+    request: Request,
     code: str,
     order_amount: float,
     db: Client = Depends(get_db),
@@ -63,6 +64,7 @@ async def validate_coupon(
 @router.post("/apply", response_model=CouponValidationResponse)
 @rate_limit("60/minute")
 async def apply_coupon(
+    http_request: Request,
     request: CouponValidationRequest,
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user_optional)
