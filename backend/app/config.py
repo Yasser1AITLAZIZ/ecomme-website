@@ -17,7 +17,9 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_ANON_KEY: str
     SUPABASE_SERVICE_ROLE_KEY: str
-    SUPABASE_JWT_SECRET: str
+    SUPABASE_JWT_SECRET: str  # Legacy: kept for backward compatibility, not used for ES256 tokens
+    SUPABASE_JWKS_URL: str = ""  # Auto-constructed from SUPABASE_URL if empty
+    JWT_KEY_CACHE_TTL: int = 3600  # Cache TTL for JWT signing keys in seconds (default: 1 hour)
     SUPABASE_STORAGE_BUCKET: str = "product-images"
     SUPABASE_POSTGREST_TIMEOUT: int = 30
     SUPABASE_STORAGE_TIMEOUT: int = 30
@@ -25,6 +27,7 @@ class Settings(BaseSettings):
     
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:3000"
+    FRONTEND_URL: str = "http://localhost:3000"
     
     # Rate Limiting
     RATE_LIMIT_ENABLED: bool = True

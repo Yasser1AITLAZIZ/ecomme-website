@@ -10,6 +10,7 @@ import { authApi } from '@/lib/api/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useI18n } from '@/lib/i18n/context';
+import Link from 'next/link';
 
 export function LoginForm() {
   const { t } = useI18n();
@@ -41,7 +42,13 @@ export function LoginForm() {
       login(response.user, response.token);
       router.push('/account');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
+      // Backend now returns translated error messages based on Accept-Language header
+      // Use the error message directly from the backend
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Login failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -63,13 +70,20 @@ export function LoginForm() {
         {...register('email')}
       />
 
-      <Input
-        label={t.auth.login.password}
-        type="password"
-        placeholder="••••••••"
-        error={errors.password?.message}
-        {...register('password')}
-      />
+      <div>
+        <Input
+          label={t.auth.login.password}
+          type="password"
+          placeholder="••••••••"
+          error={errors.password?.message}
+          {...register('password')}
+        />
+        <div className="mt-2 text-right">
+          <Link href="/forgot-password" className="text-sm text-gold-600 hover:text-gold-500 transition-colors">
+            Forgot Password?
+          </Link>
+        </div>
+      </div>
 
       <Button type="submit" variant="primary" className="w-full" isLoading={isLoading}>
         {t.auth.login.signIn}

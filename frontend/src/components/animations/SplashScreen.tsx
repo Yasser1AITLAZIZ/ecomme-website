@@ -19,20 +19,36 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
     setIsMobileDevice(mobile);
     
     // Get language from localStorage
-    const savedLang = localStorage.getItem('language') as 'en' | 'fr' | 'ar';
-    if (savedLang && ['en', 'fr', 'ar'].includes(savedLang)) {
-      setLanguage(savedLang);
+    try {
+      const savedLang = localStorage.getItem('language') as 'en' | 'fr' | 'ar';
+      if (savedLang && ['en', 'fr', 'ar'].includes(savedLang)) {
+        setLanguage(savedLang);
+      }
+    } catch (error) {
+      // localStorage might not be available (SSR)
+      console.warn('[SplashScreen] Could not access localStorage:', error);
     }
 
     // Faster on mobile (1.5s) vs desktop (2.5s)
     const splashDuration = mobile ? 1500 : 2500;
-    const completeTimer = setTimeout(() => {
+    let completeTimer: NodeJS.Timeout;
+    let fadeOutTimer: NodeJS.Timeout;
+
+    completeTimer = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(onComplete, 300);
+      // Call onComplete after fade out animation
+      fadeOutTimer = setTimeout(() => {
+        try {
+          onComplete();
+        } catch (error) {
+          console.error('[SplashScreen] Error in onComplete callback:', error);
+        }
+      }, 300);
     }, splashDuration);
 
     return () => {
-      clearTimeout(completeTimer);
+      if (completeTimer) clearTimeout(completeTimer);
+      if (fadeOutTimer) clearTimeout(fadeOutTimer);
     };
   }, [onComplete]);
 

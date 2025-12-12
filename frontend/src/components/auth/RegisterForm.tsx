@@ -39,15 +39,32 @@ export function RegisterForm() {
     resolver: zodResolver(registerSchema),
   });
 
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
   const onSubmit = async (data: RegisterFormData) => {
     try {
       setIsLoading(true);
       setError(null);
+      setSuccessMessage(null);
       const response = await authApi.register(data.email, data.password, data.name, data.phone);
-      login(response.user, response.token);
-      router.push('/account');
+      
+      // If token is provided, user is logged in (shouldn't happen with email verification)
+      // Otherwise, show verification message
+      if (response.token) {
+        login(response.user, response.token);
+        router.push('/account');
+      } else {
+        // Email verification required - backend returns translated message
+        setSuccessMessage(response.message || 'Please check your email to verify your account before logging in.');
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+      // Backend now returns translated error messages based on Accept-Language header
+      // Use the error message directly from the backend
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Registration failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -58,6 +75,12 @@ export function RegisterForm() {
       {error && (
         <div className="p-4 bg-red-500/10 border border-red-500 rounded-lg text-red-500 text-sm">
           {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="p-4 bg-green-500/10 border border-green-500 rounded-lg text-green-500 text-sm">
+          {successMessage}
         </div>
       )}
 

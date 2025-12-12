@@ -18,6 +18,13 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: 'Primo Store - Premium Smartphones & Accessories',
   description: 'Discover the latest iPhones, Android phones, and premium accessories',
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({

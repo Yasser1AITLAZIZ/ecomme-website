@@ -1,13 +1,14 @@
 """Dependencies (auth, supabase client, role checks)."""
 from typing import Optional
 import jwt
-from fastapi import Depends, HTTPException, status, Header
+from fastapi import Depends, HTTPException, status, Header, Request
 from supabase import Client
 from app.database import get_supabase_client
 from app.config import settings
 from app.schemas.user import UserProfile
 from app.core.exceptions import UnauthorizedError, ForbiddenError
 from app.core.security import validate_uuid
+from app.core.jwt_keys import get_jwt_key_manager
 
 
 async def get_db() -> Client:
@@ -21,14 +22,14 @@ async def get_db() -> Client:
 
 
 async def get_current_user(
-    authorization: Optional[str] = Header(None),
+    request: Request,
     db: Client = Depends(get_db)
 ) -> UserProfile:
     """
     Dependency to get current authenticated user from JWT token.
     
     Args:
-        authorization: Authorization header with Bearer token
+        request: FastAPI Request object to extract headers
         db: Supabase client
         
     Returns:
@@ -37,43 +38,104 @@ async def get_current_user(
     Raises:
         UnauthorizedError: If token is missing or invalid
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Extract Authorization header from request
+    authorization = request.headers.get("Authorization") or request.headers.get("authorization")
+    
     if not authorization:
+        logger.warning("Authorization header missing in request")
         raise UnauthorizedError("Authorization header missing")
     
     # Extract token from "Bearer <token>"
     try:
-        scheme, token = authorization.split()
+        scheme, token = authorization.split(maxsplit=1)
         if scheme.lower() != "bearer":
+            logger.warning(f"Invalid authorization scheme: {scheme}")
             raise UnauthorizedError("Invalid authorization scheme")
-    except ValueError:
+    except ValueError as e:
+        logger.warning(f"Invalid authorization header format: {authorization[:20]}...")
         raise UnauthorizedError("Invalid authorization header format")
     
     try:
-        # Decode and verify JWT token
+        # Get JWT key manager instance
+        key_manager = get_jwt_key_manager()
+        
+        # First, check token header for algorithm
         try:
-            decoded_token = jwt.decode(
+            unverified_header = jwt.get_unverified_header(token)
+            alg = unverified_header.get("alg", "unknown")
+            logger.debug(f"Token header: alg={alg}, kid={unverified_header.get('kid')}")
+        except Exception as e:
+            logger.error(f"Failed to decode token header: {str(e)}")
+            raise UnauthorizedError("Invalid token format")
+        
+        # Check token algorithm from header (not payload)
+        # Support both ES256 (new) and HS256 (legacy) during transition
+        if alg not in ["ES256", "HS256"]:
+            logger.warning(f"Unsupported token algorithm: {alg}. Only ES256 and HS256 are supported.")
+            raise UnauthorizedError(f"Unsupported token algorithm: {alg}. Only ES256 (ECC P-256) and HS256 (Legacy) tokens are supported.")
+        
+        # Decode without verification to check token structure (for logging)
+        try:
+            unverified = jwt.decode(token, options={"verify_signature": False})
+            logger.debug(f"Token claims (unverified): aud={unverified.get('aud')}, sub={unverified.get('sub')}")
+        except Exception as e:
+            logger.error(f"Failed to decode token (even without verification): {str(e)}")
+            raise UnauthorizedError("Invalid token format")
+        
+        # Verify token using JWK key manager (ES256)
+        decoded_token = None
+        user_id = None
+        
+        # Try with audience verification first
+        try:
+            decoded_token = await key_manager.verify_token(
                 token,
-                settings.SUPABASE_JWT_SECRET,
-                algorithms=["HS256"],
-                audience="authenticated"
+                audience="authenticated",
+                options={"verify_aud": True}
             )
             user_id = decoded_token.get("sub")
-            
-            if not user_id:
-                raise UnauthorizedError("Invalid token: missing user ID")
+            logger.debug(f"Token verified successfully with user_id: {user_id}")
+        except jwt.InvalidAudienceError:
+            # Try without audience verification
+            logger.debug("Token audience mismatch, trying without audience check")
+            try:
+                decoded_token = await key_manager.verify_token(
+                    token,
+                    audience=None,
+                    options={"verify_aud": False}
+                )
+                user_id = decoded_token.get("sub")
+                logger.debug(f"Token verified successfully (no audience check) with user_id: {user_id}")
+            except jwt.ExpiredSignatureError:
+                logger.warning("Token expired")
+                raise UnauthorizedError("Token expired")
+            except jwt.InvalidTokenError as e:
+                logger.warning(f"Invalid token: {str(e)}")
+                raise UnauthorizedError(f"Invalid token: {str(e)}")
         except jwt.ExpiredSignatureError:
+            logger.warning("Token expired")
             raise UnauthorizedError("Token expired")
         except jwt.InvalidTokenError as e:
+            logger.error(f"Token verification failed: {str(e)}")
             raise UnauthorizedError(f"Invalid token: {str(e)}")
+        
+        if not user_id:
+            logger.warning("Token missing user ID")
+            raise UnauthorizedError("Invalid token: missing user ID")
         
         # Get user profile from database using service role client
         profile_response = db.table("user_profiles").select("*").eq("id", user_id).execute()
         
         if not profile_response.data:
             # Create profile if it doesn't exist
+            # Get user metadata from JWT token claims
+            user_metadata = decoded_token.get("user_metadata", {})
             profile_data = {
                 "id": user_id,
-                "name": user_response.user.user_metadata.get("name") if user_response.user.user_metadata else None,
+                "name": user_metadata.get("name") if user_metadata else None,
                 "role": "customer"
             }
             db.table("user_profiles").insert(profile_data).execute()
@@ -82,26 +144,29 @@ async def get_current_user(
         profile = profile_response.data[0]
         return UserProfile(**profile)
         
+    except UnauthorizedError:
+        raise
     except Exception as e:
+        logger.error(f"Token verification failed: {str(e)}", exc_info=True)
         raise UnauthorizedError(f"Token verification failed: {str(e)}")
 
 
 async def get_current_user_optional(
-    authorization: Optional[str] = Header(None),
+    request: Request,
     db: Client = Depends(get_db)
 ) -> Optional[UserProfile]:
     """
     Dependency to get current user if authenticated, None otherwise.
     
     Args:
-        authorization: Authorization header with Bearer token
+        request: FastAPI Request object to extract headers
         db: Supabase client
         
     Returns:
         User profile or None
     """
     try:
-        return await get_current_user(authorization, db)
+        return await get_current_user(request, db)
     except (UnauthorizedError, HTTPException):
         return None
 

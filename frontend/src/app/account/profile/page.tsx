@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft } from 'lucide-react';
+import { Settings, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/authStore';
+import { authApi } from '@/lib/api/auth';
 import { ScrollReveal } from '@/components/animations/ScrollReveal';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useI18n } from '@/lib/i18n/context';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ProfilePage() {
   const { t, isRTL } = useI18n();
@@ -19,6 +20,7 @@ export default function ProfilePage() {
   const { user, isAuthenticated, updateUser } = useAuthStore();
   const [isSaving, setIsSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const profileSchema = z.object({
     name: z.string().min(2, t.account.name + ' must be at least 2 characters'),
@@ -60,11 +62,47 @@ export default function ProfilePage() {
   const onSubmit = async (data: ProfileFormData) => {
     try {
       setIsSaving(true);
-      updateUser(data);
+      setError(null);
+      setSuccess(false);
+      
+      // Check if user is still authenticated
+      if (!isAuthenticated || !user) {
+        setError('Session expired. Please log in again.');
+        router.push('/login');
+        return;
+      }
+      
+      // Call API to update profile in database
+      const response = await authApi.updateProfile({
+        name: data.name,
+        email: data.email,
+        phone: data.phone || undefined,
+      });
+      
+      // Update local store with the user from server response
+      updateUser(response.user);
+      
+      // Show success message (which may include email confirmation info)
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (error) {
-      console.error('Failed to update profile:', error);
+      if (response.message) {
+        setError(null);
+        // Show the message as success info (could be enhanced to show as info banner)
+        console.log('Profile update message:', response.message);
+      }
+      setTimeout(() => setSuccess(false), 5000);
+    } catch (err) {
+      console.error('Failed to update profile:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update profile. Please try again.';
+      
+      // If it's an authentication error, redirect to login
+      if (errorMessage.includes('401') || errorMessage.includes('Unauthorized') || errorMessage.includes('Not authenticated')) {
+        setError('Session expired. Redirecting to login...');
+        setTimeout(() => {
+          router.push('/login');
+        }, 2000);
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -75,31 +113,59 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div className="space-y-8">
+      {/* Page Header */}
       <ScrollReveal>
-        <Link
-          href="/account"
-          className={`flex items-center gap-2 text-gray-400 hover:text-gold-600 transition-colors mb-8 ${isRTL ? 'flex-row-reverse' : ''}`}
-        >
-          <ArrowLeft className={isRTL ? 'w-5 h-5 rotate-180' : 'w-5 h-5'} />
-          {t.orders.backToAccount}
-        </Link>
-
-        <h1 className="text-4xl md:text-5xl font-bold mb-8">
-          {t.account.profile} <span className="text-gold-600"></span>
-        </h1>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-lg bg-gold-600/20 flex items-center justify-center border border-gold-600/30">
+            <Settings className="w-6 h-6 text-gold-600" />
+          </div>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-white">
+              {t.account.profile}
+            </h1>
+            <p className="text-gray-400 mt-1">
+              {t.account.profileDesc}
+            </p>
+          </div>
+        </div>
       </ScrollReveal>
 
-      <ScrollReveal delay={0.1}>
-        <div className="max-w-2xl">
-          <div className="bg-black-100 rounded-lg border border-gold-600/10 p-8">
-            {success && (
-              <div className="mb-6 p-4 bg-green-500/10 border border-green-500 rounded-lg text-green-500 text-sm">
-                {t.account.profileUpdated}
-              </div>
-            )}
+      {/* Success Message */}
+      <AnimatePresence>
+        {success && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 flex items-center gap-3"
+          >
+            <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
+            <p className="text-green-500 font-medium">{t.account.profileUpdated}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* Error Message */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center gap-3"
+          >
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <p className="text-red-500 font-medium">{error}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Profile Form */}
+      <ScrollReveal delay={0.1}>
+        <div className="bg-black-100 rounded-xl border border-gold-600/10 p-8 md:p-10 shadow-lg">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
+            <div className="space-y-6">
               <Input
                 label={t.account.name}
                 error={errors.name?.message}
@@ -119,12 +185,20 @@ export default function ProfilePage() {
                 error={errors.phone?.message}
                 {...register('phone')}
               />
+            </div>
 
-              <Button type="submit" variant="primary" size="lg" isLoading={isSaving}>
+            <div className="pt-4 border-t border-gold-600/10">
+              <Button 
+                type="submit" 
+                variant="primary" 
+                size="lg" 
+                isLoading={isSaving}
+                className="w-full md:w-auto"
+              >
                 {t.account.saveChanges}
               </Button>
-            </form>
-          </div>
+            </div>
+          </form>
         </div>
       </ScrollReveal>
     </div>

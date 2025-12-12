@@ -21,6 +21,7 @@ class UserProfileUpdate(BaseModel):
     """User profile update schema."""
     name: Optional[str] = None
     phone: Optional[str] = None
+    email: Optional[EmailStr] = None
 
 
 class UserAddressBase(BaseModel):

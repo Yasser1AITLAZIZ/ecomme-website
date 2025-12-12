@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { I18nProvider } from '@/lib/i18n/context';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -30,11 +30,28 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     setReducedMotion(prefersReducedMotion());
   }, []);
 
+  // Memoize the onComplete callback to prevent unnecessary re-renders
+  const handleSplashComplete = useCallback(() => {
+    setShowContent(true);
+  }, []);
+
+  // Fallback timeout: if splash screen doesn't complete in 5 seconds, show content anyway
+  useEffect(() => {
+    const fallbackTimer = setTimeout(() => {
+      if (!showContent) {
+        console.warn('[ClientLayout] Splash screen timeout - showing content anyway');
+        setShowContent(true);
+      }
+    }, 5000);
+
+    return () => clearTimeout(fallbackTimer);
+  }, [showContent]);
+
   const shouldLoadAnimations = !isMobileDevice && !reducedMotion;
 
   return (
     <>
-      <SplashScreen onComplete={() => setShowContent(true)} />
+      <SplashScreen onComplete={handleSplashComplete} />
       {showContent && (
         <I18nProvider>
           <ToastProvider>

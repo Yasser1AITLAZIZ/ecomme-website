@@ -29,10 +29,17 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     if (productId) {
-      productsApi.getById(productId).then((data) => {
-        setProduct(data);
-        setLoading(false);
-      });
+      setLoading(true);
+      productsApi.getById(productId)
+        .then((data) => {
+          setProduct(data);
+          setLoading(false);
+        })
+        .catch((error) => {
+          console.error('[ProductDetailPage] Error loading product:', error);
+          setLoading(false);
+          // Product will remain null, showing the error state
+        });
     }
   }, [productId]);
 
