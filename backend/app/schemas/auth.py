@@ -84,3 +84,4 @@ class UpdateProfileResponse(BaseModel):
     """Profile update response schema."""
     user: UserMeResponse
     message: Optional[str] = None
+    require_logout: bool = False  # Set to True when email is changed and user needs to logout

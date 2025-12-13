@@ -85,11 +85,20 @@ export default function ProfilePage() {
       // Show success message (which may include email confirmation info)
       setSuccess(true);
       if (response.message) {
-        setError(null);
-        // Show the message as success info (could be enhanced to show as info banner)
-        console.log('Profile update message:', response.message);
+        // If email was changed, show the message about needing to confirm before next login
+        if (response.require_logout || response.message.includes("confirmation email") || response.message.includes("verify")) {
+          // Show as a warning/info message (using error state for visibility, but it's informational)
+          setError(response.message);
+        } else {
+          setError(null);
+          // Show the message as success info
+          console.log('Profile update message:', response.message);
+        }
       }
-      setTimeout(() => setSuccess(false), 5000);
+      setTimeout(() => {
+        setSuccess(false);
+        setError(null);
+      }, 8000); // Show message for 8 seconds
     } catch (err) {
       console.error('Failed to update profile:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to update profile. Please try again.';

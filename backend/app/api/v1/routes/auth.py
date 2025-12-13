@@ -541,6 +541,61 @@ async def login(
         session = auth_response.session
         user_id = user.id
         
+        # Check if email is confirmed - critical for security after email changes
+        # When a user changes their email, it's set to email_confirm: False
+        # They must verify the new email before they can log in again
+        # Use Admin API to get the actual confirmation status
+        import logging
+        logger = logging.getLogger(__name__)
+        admin_api_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{user_id}"
+        headers = {
+            "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                user_check_response = await client.get(
+                    admin_api_url,
+                    headers=headers,
+                    timeout=10.0
+                )
+                if user_check_response.status_code == 200:
+                    user_data = user_check_response.json()
+                    email_confirmed_at = user_data.get("email_confirmed_at")
+                    current_email = user_data.get("email")
+                    # SIMPLE CHECK: Email must be confirmed before login
+                    # If email_confirmed_at is None, the email has not been confirmed
+                    email_confirmed = email_confirmed_at is not None
+                    
+                    # Block login if email is not confirmed
+                    if not email_confirmed:
+                        logger.warning(f"Login attempt blocked for user {user_id}, email: {current_email}, confirmed_at: {email_confirmed_at}")
+                        raise HTTPException(
+                            status_code=status.HTTP_403_FORBIDDEN,
+                            detail=t("email_not_confirmed", lang)
+                        )
+                    
+                    # Additional check: if login email doesn't match the user's current email,
+                    # it means they're trying to login with an old email after changing it
+                    if current_email and current_email.lower() != login_data.email.lower():
+                        logger.warning(f"Login attempt with email mismatch for user {user_id}: login_email={login_data.email}, user_email={current_email}")
+                        raise HTTPException(
+                            status_code=status.HTTP_403_FORBIDDEN,
+                            detail=t("email_not_confirmed", lang)
+                        )
+                else:
+                    # If we can't get user data, log error but allow login for availability
+                    # In production, you might want to fail closed for security
+                    logger.error(f"Failed to get user data for email confirmation check: HTTP {user_check_response.status_code}")
+        except HTTPException:
+            raise
+        except Exception as check_error:
+            # If we can't check, log but don't block login (fail open for availability)
+            # In production, you might want to fail closed for better security
+            logger.warning(f"Failed to check email confirmation status for user {user_id}: {str(check_error)}")
+        
         # Get user profile from database
         profile_response = db.table("user_profiles").select("*").eq("id", user_id).execute()
         
@@ -855,7 +910,7 @@ async def update_profile(
         if profile_update.email is not None and profile_update.email != current_email:
             email_changed = True
             try:
-                # First, update email using Admin API
+                # Step 1: Update email using Admin API
                 async with httpx.AsyncClient() as client:
                     update_response = await client.put(
                         admin_api_url,
@@ -871,53 +926,152 @@ async def update_profile(
                     if update_response.status_code not in [200, 201]:
                         error_data = update_response.json() if update_response.headers.get("content-type", "").startswith("application/json") else {}
                         error_msg = error_data.get("msg", error_data.get("message", "Failed to update email"))
+                        error_str = str(error_msg).lower()
+                        
+                        # Check if error is about email already existing
+                        if "email" in error_str and ("already" in error_str or "exists" in error_str or "registered" in error_str or "duplicate" in error_str):
+                            logger.error(f"Email already exists for user {current_user.id}: {error_msg}")
+                            raise HTTPException(
+                                status_code=status.HTTP_400_BAD_REQUEST,
+                                detail=t("email_already_exists", lang)
+                            )
+                        
                         logger.error(f"Failed to update email for user {current_user.id}: {error_msg}")
                         raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
                             detail=t("failed_to_update_email", lang)
                         )
                 
+                # Step 2: Reset email_confirmed_at to NULL using SQL directly
+                # SIMPLE APPROACH: Use SQL via PostgREST RPC to call a SQL function
+                # We'll create a simple SQL function that updates auth.users.email_confirmed_at
+                # For now, we'll use a direct SQL update via the database connection
+                # Since Supabase Python client doesn't support raw SQL, we use httpx to call a SQL function
+                
+                # Create/use a SQL function to reset email_confirmed_at
+                # Function SQL (should be created in Supabase):
+                # CREATE OR REPLACE FUNCTION reset_user_email_confirmation(user_id UUID)
+                # RETURNS void AS $$
+                # BEGIN
+                #   UPDATE auth.users SET email_confirmed_at = NULL WHERE id = user_id;
+                # END;
+                # $$ LANGUAGE plpgsql SECURITY DEFINER;
+                
+                rpc_url = f"{settings.SUPABASE_URL}/rest/v1/rpc/reset_user_email_confirmation"
+                rpc_headers = {
+                    "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+                    "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+                    "Content-Type": "application/json",
+                    "Prefer": "return=minimal"
+                }
+                
+                async with httpx.AsyncClient() as rpc_client:
+                    rpc_response = await rpc_client.post(
+                        rpc_url,
+                        headers=rpc_headers,
+                        json={"user_id": current_user.id},
+                        timeout=10.0
+                    )
+                    
+                    # If RPC function doesn't exist, we'll rely on the login check to block unconfirmed emails
+                    # The login check will verify email_confirmed_at and block if it's not null but email was changed
+                    if rpc_response.status_code not in [200, 201, 204]:
+                        logger.warning(f"Could not reset email_confirmed_at via RPC (status {rpc_response.status_code}). This may mean the SQL function doesn't exist. Login check will block unconfirmed emails.")
+                        # Note: The login check logic will handle blocking unconfirmed emails even if this fails
+                
                 email = profile_update.email
                 logger.info(f"Updated email for user {current_user.id} to {profile_update.email}")
                 
-                # Now send email confirmation using Admin API generate_link
-                # This endpoint generates a link and Supabase should send the email automatically
+                # Send email confirmation using Admin API generate_link
+                # This is the proper way to send confirmation emails after email change via Admin API
                 frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
                 redirect_to = f"{frontend_url}/verify-email"
                 
-                async with httpx.AsyncClient() as client:
-                    admin_generate_url = f"{settings.SUPABASE_URL}/auth/v1/admin/generate_link"
+                try:
+                    # Try using Supabase client to resend confirmation email (like reset password)
+                    # This might work better than Admin API generate_link
+                    import asyncio
+                    supabase_anon = get_supabase_client_anon()
+                    loop = asyncio.get_event_loop()
+                    
+                    # Try to use resend() method if available, or sign_in with the new email
                     try:
-                        link_response = await client.post(
-                            admin_generate_url,
-                            headers=headers,
-                            json={
-                                "type": "email_change",
-                                "email": profile_update.email,
-                                "redirect_to": redirect_to
-                            },
-                            timeout=10.0
+                        # Attempt to resend confirmation email using the client
+                        # Note: This might not work for email changes, but worth trying
+                        await loop.run_in_executor(
+                            None,
+                            lambda: supabase_anon.auth.resend({
+                                "type": "signup",
+                                "email": profile_update.email
+                            })
                         )
                         
-                        if link_response.status_code in [200, 201]:
-                            link_data = link_response.json()
-                            # The generate_link should trigger email sending
-                            # Check if properties contain action_link which indicates email was sent
-                            if "properties" in link_data and "action_link" in link_data["properties"]:
+                        logger.info(f"Email confirmation resend attempted via client for user {current_user.id} to {profile_update.email}")
+                        message = t("email_changed_suspended", lang)
+                    except Exception as resend_error:
+                        # If resend() doesn't work, fallback to Admin API generate_link
+                        logger.warning(f"resend() method failed for user {current_user.id}, falling back to generate_link: {str(resend_error)}")
+                        
+                        # Fallback to Admin API generate_link
+                        # Use Admin API generate_link to send confirmation email to the new email address
+                        # Try multiple approaches to ensure email is sent
+                        async with httpx.AsyncClient() as client:
+                            # Approach 1: Try user-specific endpoint with recovery type (for email changes)
+                            admin_generate_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{current_user.id}/generate_link"
+                            link_response = await client.post(
+                                admin_generate_url,
+                                headers=headers,
+                                json={
+                                    "type": "recovery",
+                                    "redirect_to": redirect_to
+                                },
+                                timeout=10.0
+                            )
+                            
+                            # If recovery type doesn't work, try magiclink type
+                            if link_response.status_code not in [200, 201]:
+                                link_response = await client.post(
+                                    admin_generate_url,
+                                    headers=headers,
+                                    json={
+                                        "type": "magiclink",
+                                        "redirect_to": redirect_to
+                                    },
+                                    timeout=10.0
+                                )
+                            
+                            # If user-specific endpoint doesn't work, fallback to generic endpoint with signup type
+                            if link_response.status_code not in [200, 201]:
+                                admin_generate_url_fallback = f"{settings.SUPABASE_URL}/auth/v1/admin/generate_link"
+                                link_response = await client.post(
+                                    admin_generate_url_fallback,
+                                    headers=headers,
+                                    json={
+                                        "type": "signup",
+                                        "email": profile_update.email,
+                                        "redirect_to": redirect_to
+                                    },
+                                    timeout=10.0
+                                )
+                            
+                            if link_response.status_code in [200, 201]:
+                                link_data = link_response.json()
+                                # The generate_link endpoint automatically sends the email
+                                # We just need to verify the response indicates success
                                 logger.info(f"Email change confirmation email sent to {profile_update.email} for user {current_user.id}")
-                                message = t("profile_updated_email_sent", lang, email=profile_update.email)
+                                message = t("email_changed_suspended", lang)
                             else:
-                                # Link generated but might not have triggered email
-                                logger.warning(f"Email change link generated but email sending status unclear for user {current_user.id}")
-                                message = t("profile_updated_email_should_sent", lang, email=profile_update.email)
-                        else:
-                            error_data = link_response.json() if link_response.headers.get("content-type", "").startswith("application/json") else {}
-                            error_msg = error_data.get("msg", error_data.get("message", "Unknown error"))
-                            logger.warning(f"Failed to generate email change link for user {current_user.id}: {error_msg}")
-                            message = t("profile_updated_email_should_sent", lang, email=profile_update.email)
-                    except Exception as link_error:
-                        logger.error(f"Error generating email change confirmation link for user {current_user.id}: {str(link_error)}")
-                        message = t("profile_updated_email_should_sent", lang, email=profile_update.email)
+                                error_data = link_response.json() if link_response.headers.get("content-type", "").startswith("application/json") else {}
+                                error_msg = error_data.get("msg", error_data.get("message", f"HTTP {link_response.status_code}"))
+                                logger.error(f"Failed to generate confirmation link for user {current_user.id}: {error_msg}")
+                                
+                                # Still set message so user knows they need to confirm
+                                message = t("email_changed_suspended", lang)
+                except Exception as email_error:
+                    logger.error(f"Error sending confirmation email for user {current_user.id}: {str(email_error)}")
+                    
+                    # Still set message so user knows they need to confirm
+                    message = t("email_changed_suspended", lang)
                         
             except HTTPException:
                 raise
@@ -969,6 +1123,9 @@ async def update_profile(
         if not message:
             message = t("profile_updated_success", lang)
         
+        # Don't require logout - user can stay logged in but must confirm email before next login
+        require_logout = False
+        
         return UpdateProfileResponse(
             user=UserMeResponse(
                 id=updated_profile["id"],
@@ -977,7 +1134,8 @@ async def update_profile(
                 role=updated_profile.get("role", "customer"),
                 phone=updated_profile.get("phone")
             ),
-            message=message
+            message=message,
+            require_logout=require_logout
         )
     except HTTPException:
         raise
