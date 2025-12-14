@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuthStore } from '@/lib/store/authStore';
@@ -35,6 +35,7 @@ export function RegisterForm() {
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<RegisterFormData>({
@@ -102,11 +103,18 @@ export function RegisterForm() {
         {...register('email')}
       />
 
-      <PhoneInput
-        label={t.checkout.phone}
-        placeholder="+212 6XX XXX XXX"
-        error={errors.phone?.message}
-        {...register('phone')}
+      <Controller
+        name="phone"
+        control={control}
+        render={({ field }) => (
+          <PhoneInput
+            label={t.checkout.phone}
+            placeholder="+212 6XX XXX XXX"
+            error={errors.phone?.message}
+            value={field.value}
+            onChange={field.onChange}
+          />
+        )}
       />
 
       <Input

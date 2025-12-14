@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useI18n } from '@/lib/i18n/context';
@@ -32,6 +32,7 @@ export default function ContactPage() {
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
     reset,
@@ -93,10 +94,17 @@ export default function ContactPage() {
                 error={errors.email?.message}
                 {...register('email')}
               />
-              <PhoneInput
-                label={t.company.contact.form.phone}
-                error={errors.phone?.message}
-                {...register('phone')}
+              <Controller
+                name="phone"
+                control={control}
+                render={({ field }) => (
+                  <PhoneInput
+                    label={t.company.contact.form.phone}
+                    error={errors.phone?.message}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
               />
               <Input
                 label={t.company.contact.form.subject}

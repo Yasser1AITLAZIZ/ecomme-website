@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Settings, CheckCircle2, AlertCircle, LayoutDashboard } from 'lucide-react';
@@ -34,6 +34,7 @@ export default function ProfilePage() {
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
     reset,
@@ -190,10 +191,17 @@ export default function ProfilePage() {
                 {...register('email')}
               />
 
-              <PhoneInput
-                label={t.account.phone}
-                error={errors.phone?.message}
-                {...register('phone')}
+              <Controller
+                name="phone"
+                control={control}
+                render={({ field }) => (
+                  <PhoneInput
+                    label={t.account.phone}
+                    error={errors.phone?.message}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
               />
             </div>
 

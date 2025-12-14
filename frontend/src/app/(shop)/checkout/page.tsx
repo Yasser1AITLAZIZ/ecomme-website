@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
@@ -43,6 +43,7 @@ export default function CheckoutPage() {
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<CheckoutFormData>({
@@ -167,10 +168,17 @@ export default function CheckoutPage() {
                   {...register('email')}
                 />
 
-                <PhoneInput
-                  label={t.checkout.phone}
-                  error={errors.phone?.message}
-                  {...register('phone')}
+                <Controller
+                  name="phone"
+                  control={control}
+                  render={({ field }) => (
+                    <PhoneInput
+                      label={t.checkout.phone}
+                      error={errors.phone?.message}
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+                  )}
                 />
 
                 <Input
