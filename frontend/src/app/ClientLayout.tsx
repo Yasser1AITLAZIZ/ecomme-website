@@ -8,7 +8,6 @@ import { CartSidebar } from '@/components/layout/CartSidebar';
 import { SplashScreen } from '@/components/animations/SplashScreen';
 import { ScrollProgress } from '@/components/ui/ScrollProgress';
 import { ToastProvider } from '@/components/ui/Toast';
-import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
 import { ScrollToTop } from '@/components/ui/ScrollToTop';
 import { ScrollingTickerBar } from '@/components/ui/ScrollingTickerBar';
 import { isMobile, prefersReducedMotion } from '@/lib/utils/device';
@@ -62,7 +61,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               </Suspense>
             )}
             <ScrollProgress />
-            <FloatingActionButton />
             <ScrollToTop />
             {/* Lazy load heavy background animations */}
             {shouldLoadAnimations && (
@@ -86,4 +84,3 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     </>
   );
 }
-

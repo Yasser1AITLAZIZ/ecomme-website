@@ -14,7 +14,6 @@ export function FloatingActionButton() {
   const openCartSidebar = useUIStore((state) => state.openCartSidebar);
   const cartSidebarOpen = useUIStore((state) => state.cartSidebarOpen);
   const { isRTL } = useI18n();
-  const [notifications, setNotifications] = useState(3);
 
   const actions = [
     {
@@ -143,36 +142,10 @@ export function FloatingActionButton() {
               className="relative"
             >
               <Bell className="w-6 h-6" />
-              {notifications > 0 && (
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                  className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
-                >
-                  {notifications}
-                </motion.span>
-              )}
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Pulsing ring effect */}
-        {!isOpen && (
-          <motion.div
-            className="absolute inset-0 rounded-full border-2 border-gold-400"
-            animate={{
-              scale: [1, 1.3, 1],
-              opacity: [0.5, 0, 0.5],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-            }}
-          />
-        )}
       </motion.button>
     </div>
   );
 }
-
