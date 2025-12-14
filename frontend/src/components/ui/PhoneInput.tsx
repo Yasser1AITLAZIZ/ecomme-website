@@ -1,77 +1,193 @@
 'use client';
 
-import { forwardRef, useRef, useEffect, type ComponentProps } from 'react';
-import PhoneInputWithCountry, { type Value as PhoneValue } from 'react-phone-number-input';
-import flags from 'react-phone-number-input/flags';
-import 'react-phone-number-input/style.css';
+import { forwardRef, useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { ChevronDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { countries, type Country, getCountryByCode, getCountryByDialCode } from '@/lib/data/countries';
+import { parsePhoneNumber, type CountryCode } from 'libphonenumber-js';
+import { useI18n } from '@/lib/i18n/context';
 
-type PhoneInputProps = ComponentProps<typeof PhoneInputWithCountry>;
-
-interface CustomPhoneInputProps extends Omit<PhoneInputProps, 'className'> {
+interface PhoneInputProps {
   label?: string;
   error?: string;
   className?: string;
+  id?: string;
+  value?: string;
+  onChange?: (value: string) => void;
+  placeholder?: string;
+  defaultCountry?: string; // ISO country code like 'MA', 'US', etc.
 }
 
-export const PhoneInput = forwardRef<HTMLInputElement, CustomPhoneInputProps>(
-  ({ label, error, className, id, value, onChange, ...props }, ref) => {
+export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
+  ({ label, error, className, id, value = '', onChange, placeholder, defaultCountry = 'MA' }, ref) => {
+    const { t, language } = useI18n();
     const inputId = id || `phone-input-${label?.toLowerCase().replace(/\s+/g, '-')}`;
-    const countrySelectRef = useRef<HTMLSelectElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    
+    // Get translated country name
+    const getCountryName = useCallback((countryCode: string): string => {
+      const translatedName = t.countries?.[countryCode as keyof typeof t.countries];
+      if (translatedName && typeof translatedName === 'string') {
+        return translatedName;
+      }
+      // Fallback to English name from countries data
+      const country = getCountryByCode(countryCode);
+      return country?.name || countryCode;
+    }, [t]);
+    // Initialize country and phone number from value
+    const initializeFromValue = useCallback((val: string | undefined) => {
+      if (!val || val.trim() === '') {
+        return {
+          country: getCountryByCode(defaultCountry) || countries[0],
+          phone: '',
+        };
+      }
 
-    // Ensure the country select element is accessible after mount and prevent focus errors
-    useEffect(() => {
-      if (!containerRef.current) return;
-
-      const ensureSelectElement = () => {
-        const selectElement = containerRef.current?.querySelector<HTMLSelectElement>('.PhoneInputCountrySelect');
-        if (selectElement && selectElement !== countrySelectRef.current) {
-          countrySelectRef.current = selectElement;
-          // Ensure the element is accessible
-          selectElement.setAttribute('tabindex', '0');
-          
-          // Override focus method to prevent null reference errors
-          const originalFocus = selectElement.focus;
-          selectElement.focus = function(this: HTMLSelectElement) {
-            try {
-              if (this && this !== null && document.body.contains(this)) {
-                originalFocus.call(this);
-              }
-            } catch (err) {
-              // Silently handle focus errors - the library may try to focus before element is ready
-            }
+      try {
+        const parsed = parsePhoneNumber(val);
+        const country = getCountryByCode(parsed.country || '');
+        if (country) {
+          return {
+            country,
+            phone: parsed.nationalNumber,
           };
+        }
+      } catch {
+        // If parsing fails, try to extract country code manually
+        const dialCodeMatch = val.match(/^\+(\d{1,4})/);
+        if (dialCodeMatch) {
+          const dialCode = '+' + dialCodeMatch[1];
+          const country = getCountryByDialCode(dialCode);
+          if (country) {
+            const phone = val.replace(dialCode, '').trim();
+            return { country, phone };
+          }
+        }
+      }
+
+      // Fallback to default
+      return {
+        country: getCountryByCode(defaultCountry) || countries[0],
+        phone: val.replace(/^\+?\d{1,4}\s?/, ''),
+      };
+    }, [defaultCountry]);
+
+    const [selectedCountry, setSelectedCountry] = useState<Country>(() => 
+      initializeFromValue(value).country
+    );
+    const [phoneNumber, setPhoneNumber] = useState(() => 
+      initializeFromValue(value).phone
+    );
+
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+          setIsDropdownOpen(false);
+          setSearchQuery('');
         }
       };
 
-      // Run immediately
-      ensureSelectElement();
+      if (isDropdownOpen) {
+        document.addEventListener('mousedown', handleClickOutside);
+        // Focus search input when dropdown opens
+        setTimeout(() => {
+          searchInputRef.current?.focus();
+        }, 100);
+      }
 
-      // Use MutationObserver to watch for when the select element is added to DOM
-      const observer = new MutationObserver(() => {
-        ensureSelectElement();
-      });
-
-      observer.observe(containerRef.current, {
-        childList: true,
-        subtree: true,
-      });
-
-      // Also check after delays to catch any async rendering
-      const timeoutIds = [
-        setTimeout(ensureSelectElement, 50),
-        setTimeout(ensureSelectElement, 200),
-      ];
-      
       return () => {
-        observer.disconnect();
-        timeoutIds.forEach(id => clearTimeout(id));
+        document.removeEventListener('mousedown', handleClickOutside);
       };
-    }, [value]);
+    }, [isDropdownOpen]);
+
+    // Update phone number when value prop changes externally
+    useEffect(() => {
+      const { country, phone } = initializeFromValue(value);
+      setSelectedCountry(country);
+      setPhoneNumber(phone);
+    }, [value, initializeFromValue]);
+
+    const handleCountrySelect = useCallback((country: Country) => {
+      setSelectedCountry(country);
+      setIsDropdownOpen(false);
+      setSearchQuery('');
+      
+      // Always update the value when country changes
+      // If phone number exists, combine them; otherwise just set empty
+      if (phoneNumber) {
+        const fullNumber = country.dialCode + phoneNumber;
+        onChange?.(fullNumber);
+      } else {
+        // Even if no phone number, we should update to reflect country change
+        // This helps with form state management
+        onChange?.('');
+      }
+    }, [phoneNumber, onChange]);
+
+    const handlePhoneNumberChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+      let inputValue = e.target.value.replace(/\D/g, ''); // Only digits
+      
+      // Check if the input starts with a country code (user might have pasted full number)
+      if (inputValue.length > 4) {
+        // Try to detect if it starts with a known country code
+        for (const country of countries) {
+          const dialCodeDigits = country.dialCode.replace('+', '');
+          if (inputValue.startsWith(dialCodeDigits)) {
+            // Extract country and phone number
+            const phone = inputValue.slice(dialCodeDigits.length);
+            setSelectedCountry(country);
+            setPhoneNumber(phone);
+            if (phone) {
+              onChange?.(country.dialCode + phone);
+            } else {
+              onChange?.('');
+            }
+            return;
+          }
+        }
+      }
+      
+      setPhoneNumber(inputValue);
+      
+      // Combine country code and phone number, only call onChange if there's a value
+      if (inputValue) {
+        const fullNumber = selectedCountry.dialCode + inputValue;
+        onChange?.(fullNumber);
+      } else {
+        // If phone number is empty, still call onChange with empty string
+        onChange?.('');
+      }
+    }, [selectedCountry, onChange]);
+
+    // Filter countries based on search query (search in translated names too)
+    const filteredCountries = useMemo(() => {
+      if (!searchQuery) return countries;
+      
+      const query = searchQuery.toLowerCase();
+      return countries.filter((country) => {
+        const translatedName = getCountryName(country.code).toLowerCase();
+        const englishName = country.name.toLowerCase();
+        return (
+          translatedName.includes(query) ||
+          englishName.includes(query) ||
+          country.dialCode.includes(searchQuery) ||
+          country.code.toLowerCase().includes(query)
+        );
+      });
+    }, [searchQuery, getCountryName]);
+
+    // Get flag URL
+    const getFlagUrl = (countryCode: string) => {
+      return `https://purecatamphetamine.github.io/country-flag-icons/3x2/${countryCode}.svg`;
+    };
 
     return (
-      <div className="w-full">
+      <div className={cn('w-full', className)}>
         {label && (
           <label
             htmlFor={inputId}
@@ -80,172 +196,128 @@ export const PhoneInput = forwardRef<HTMLInputElement, CustomPhoneInputProps>(
             {label}
           </label>
         )}
-        <div 
-          ref={containerRef}
-          className={cn(
-            'relative flex items-stretch',
-            'bg-black-100 border rounded-lg',
-            'focus-within:ring-2 focus-within:ring-gold-600 focus-within:border-transparent',
-            'transition-all duration-200',
-            error && 'border-red-500 focus-within:ring-red-500',
-            !error && 'border-black-300'
-          )}
-        >
-          <PhoneInputWithCountry
-            {...props}
-            id={inputId}
-            value={value as PhoneValue}
-            onChange={onChange}
-            flags={flags}
-            flagUrl="https://purecatamphetamine.github.io/country-flag-icons/3x2/{XX}.svg"
-            className="phone-input-wrapper"
-            numberInputProps={{
-              className: cn(
+        <div className="relative">
+          <div
+            className={cn(
+              'flex items-stretch bg-black-100 border rounded-lg',
+              'focus-within:ring-2 focus-within:ring-gold-600 focus-within:border-transparent',
+              'transition-all duration-200',
+              error && 'border-red-500 focus-within:ring-red-500',
+              !error && 'border-black-300'
+            )}
+          >
+            {/* Country Selector Button */}
+            <button
+              type="button"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className={cn(
+                'flex items-center gap-2 px-3 py-3 border-r border-gold-600/30',
+                'hover:bg-black-50 transition-colors',
+                'focus:outline-none focus:ring-2 focus:ring-gold-600 focus:ring-inset'
+              )}
+              aria-label="Select country"
+            >
+              <img
+                src={getFlagUrl(selectedCountry.code)}
+                alt={getCountryName(selectedCountry.code)}
+                className="w-5 h-4 object-cover rounded-sm"
+                onError={(e) => {
+                  // Fallback if flag fails to load
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+              <span className="text-white text-sm font-medium">
+                {selectedCountry.dialCode}
+              </span>
+              <ChevronDown
+                className={cn(
+                  'w-4 h-4 text-gray-400 transition-transform',
+                  isDropdownOpen && 'rotate-180'
+                )}
+              />
+            </button>
+
+            {/* Phone Number Input */}
+            <input
+              ref={ref}
+              id={inputId}
+              type="tel"
+              value={phoneNumber}
+              onChange={handlePhoneNumberChange}
+              placeholder={placeholder || 'Enter phone number'}
+              className={cn(
                 'flex-1 px-4 py-3 bg-transparent',
                 'text-white placeholder:text-gray-500',
                 'border-none outline-none',
                 '[&::placeholder]:text-gray-500'
-              ),
-              ref: ref,
-            }}
-            countrySelectProps={{
-              className: cn(
-                'bg-transparent border-none outline-none',
-                'px-2 py-3'
-              ),
-              'aria-label': 'Phone number country',
-            }}
-          />
+              )}
+            />
+          </div>
+
+          {/* Country Dropdown */}
+          {isDropdownOpen && (
+            <div
+              ref={dropdownRef}
+              className="absolute z-50 mt-2 w-80 bg-black-100 border border-gold-600/30 rounded-lg shadow-xl max-h-96 overflow-hidden"
+            >
+              {/* Search Input */}
+              <div className="p-3 border-b border-gold-600/20">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={language === 'ar' ? 'ابحث عن دولة...' : language === 'fr' ? 'Rechercher un pays...' : 'Search country...'}
+                    className="w-full pl-10 pr-4 py-2 bg-black-50 border border-gold-600/20 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gold-600"
+                  />
+                </div>
+              </div>
+
+              {/* Countries List */}
+              <div className="overflow-y-auto max-h-80">
+                {filteredCountries.length > 0 ? (
+                  filteredCountries.map((country) => (
+                    <button
+                      key={country.code}
+                      type="button"
+                      onClick={() => handleCountrySelect(country)}
+                      className={cn(
+                        'w-full flex items-center gap-3 px-4 py-3 text-left',
+                        'hover:bg-gold-600/10 transition-colors',
+                        'focus:outline-none focus:bg-gold-600/10',
+                        selectedCountry.code === country.code && 'bg-gold-600/20'
+                      )}
+                    >
+                      <img
+                        src={getFlagUrl(country.code)}
+                        alt={getCountryName(country.code)}
+                        className="w-6 h-4 object-cover rounded-sm flex-shrink-0"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                      <span className="flex-1 text-white font-medium">
+                        {getCountryName(country.code)}
+                      </span>
+                      <span className="text-gray-400 text-sm">
+                        {country.dialCode}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-4 py-8 text-center text-gray-400">
+                    {language === 'ar' ? 'لم يتم العثور على دول' : language === 'fr' ? 'Aucun pays trouvé' : 'No countries found'}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
         {error && (
           <p className="mt-1 text-sm text-red-500">{error}</p>
         )}
-        <style jsx global>{`
-          .phone-input-wrapper {
-            display: flex;
-            align-items: stretch;
-            width: 100%;
-          }
-          
-          .phone-input-wrapper .PhoneInputInput {
-            flex: 1;
-            background: transparent !important;
-            border: none !important;
-            outline: none !important;
-            color: white !important;
-            padding: 0.75rem 1rem !important;
-          }
-          
-          .phone-input-wrapper .PhoneInputInput::placeholder {
-            color: rgb(107 114 128) !important;
-          }
-          
-          .phone-input-wrapper .PhoneInputCountry {
-            display: flex;
-            align-items: center;
-            padding: 0 8px;
-            border-right: 1px solid rgba(212, 175, 55, 0.3);
-            position: relative;
-          }
-          
-          .phone-input-wrapper .PhoneInputCountryIcon {
-            width: 20px;
-            height: 15px;
-            border-radius: 2px;
-            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
-            display: block !important;
-          }
-          
-          .phone-input-wrapper .PhoneInputCountryIcon img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-          }
-          
-          .phone-input-wrapper .PhoneInputCountryIcon--border {
-            border: none;
-          }
-          
-          /* Dropdown styles */
-          .phone-input-wrapper .PhoneInputCountrySelect {
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: 60px;
-            opacity: 0;
-            cursor: pointer;
-            z-index: 1;
-            color: #000 !important;
-            pointer-events: auto !important;
-            display: block !important;
-            visibility: visible !important;
-            -webkit-appearance: menulist !important;
-            -moz-appearance: menulist !important;
-            appearance: menulist !important;
-          }
-          
-          /* Style native option elements to ensure visibility */
-          .phone-input-wrapper .PhoneInputCountrySelect option {
-            color: #000 !important;
-            background-color: #fff !important;
-            padding: 8px 12px !important;
-          }
-          
-          /* Ensure select element doesn't interfere with option visibility */
-          .phone-input-wrapper .PhoneInputCountrySelect:focus {
-            outline: none;
-          }
-          
-          /* Prevent focus errors by ensuring element is always accessible */
-          .phone-input-wrapper .PhoneInputCountry {
-            min-height: 48px;
-            display: flex !important;
-            align-items: center !important;
-          }
-          
-          /* Ensure country select is properly mounted before interaction */
-          .phone-input-wrapper .PhoneInputCountrySelect:not([disabled]) {
-            visibility: visible !important;
-          }
-          
-          /* Ensure flags are visible in dropdown */
-          .PhoneInputCountryOption {
-            display: flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-          }
-          
-          .PhoneInputCountryOption .PhoneInputCountryIcon {
-            display: inline-block !important;
-            flex-shrink: 0 !important;
-            width: 20px !important;
-            height: 15px !important;
-          }
-          
-          /* Dropdown menu container */
-          .PhoneInputCountrySelectDropdown {
-            background: rgb(17, 24, 39) !important;
-            border: 1px solid rgba(212, 175, 55, 0.3) !important;
-            border-radius: 0.5rem !important;
-            max-height: 300px !important;
-            overflow-y: auto !important;
-          }
-          
-          .PhoneInputCountrySelectDropdown .PhoneInputCountryOption {
-            padding: 8px 12px !important;
-            color: white !important;
-            cursor: pointer !important;
-          }
-          
-          .PhoneInputCountrySelectDropdown .PhoneInputCountryOption:hover {
-            background: rgba(212, 175, 55, 0.1) !important;
-          }
-          
-          .phone-input-wrapper .PhoneInputCountrySelectArrow {
-            display: none;
-          }
-        `}</style>
       </div>
     );
   }

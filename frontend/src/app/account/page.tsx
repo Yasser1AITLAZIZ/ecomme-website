@@ -23,7 +23,14 @@ export default function AccountPage() {
     return null;
   }
 
-  const menuItems = [
+  type MenuItem = {
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    href: string;
+    description: string;
+  };
+
+  const menuItems: MenuItem[] = [
     {
       icon: Package,
       label: t.account.myOrders,
