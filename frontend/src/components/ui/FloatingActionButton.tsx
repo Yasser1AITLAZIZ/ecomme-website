@@ -145,21 +145,6 @@ export function FloatingActionButton() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Pulsing ring effect */}
-        {!isOpen && (
-          <motion.div
-            className="absolute inset-0 rounded-full border-2 border-gold-400"
-            animate={{
-              scale: [1, 1.3, 1],
-              opacity: [0.5, 0, 0.5],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-            }}
-          />
-        )}
       </motion.button>
     </div>
   );
