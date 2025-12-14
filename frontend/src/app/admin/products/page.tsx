@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Upload } from 'lucide-react';
 import { productsApi } from '@/lib/api/products';
 import { DataTable } from '@/components/admin/DataTable';
+import { BulkImportProducts } from '@/components/admin/BulkImportProducts';
 import type { Product } from '@/types';
 
 export default function AdminProductsPage() {
@@ -13,6 +14,7 @@ export default function AdminProductsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [showImport, setShowImport] = useState(false);
   const perPage = 20;
 
   useEffect(() => {
@@ -112,14 +114,32 @@ export default function AdminProductsPage() {
           <h1 className="text-3xl font-bold text-white mb-2">Products</h1>
           <p className="text-gray-400">Manage your product catalog</p>
         </div>
-        <button
-          onClick={() => router.push('/admin/products/new')}
-          className="flex items-center gap-2 px-4 py-2 bg-gold-600 hover:bg-gold-700 text-white rounded-lg transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Add Product
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowImport(!showImport)}
+            className="flex items-center gap-2 px-4 py-2 bg-gold-600/20 hover:bg-gold-600/30 text-gold-600 border border-gold-600/30 rounded-lg transition-colors"
+          >
+            <Upload className="w-5 h-5" />
+            {showImport ? 'Hide Import' : 'Bulk Import'}
+          </button>
+          <button
+            onClick={() => router.push('/admin/products/new')}
+            className="flex items-center gap-2 px-4 py-2 bg-gold-600 hover:bg-gold-700 text-white rounded-lg transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Add Product
+          </button>
+        </div>
       </div>
+
+      {showImport && (
+        <BulkImportProducts
+          onImportComplete={() => {
+            setShowImport(false);
+            loadProducts();
+          }}
+        />
+      )}
 
       <div className="flex gap-4">
         <div className="flex-1 relative">

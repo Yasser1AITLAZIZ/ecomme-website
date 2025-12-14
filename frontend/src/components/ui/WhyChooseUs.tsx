@@ -1,9 +1,11 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { CreditCard, Headphones, Award, ShieldCheck, Sparkles } from 'lucide-react';
+import { CreditCard, Headphones, Award, ShieldCheck, Sparkles, Users, ShoppingBag, Star } from 'lucide-react';
 import { ScrollReveal } from '@/components/animations/ScrollReveal';
 import { useI18n } from '@/lib/i18n/context';
+import { GlassCard } from './GlassCard';
+import { AnimatedCounter } from './AnimatedCounter';
 import { cn } from '@/lib/utils/cn';
 
 interface Priority {
@@ -13,12 +15,18 @@ interface Priority {
   color: string;
   bgColor: string;
   delay: number;
+  stat?: {
+    value: number;
+    suffix: string;
+    label: string;
+    decimals?: number;
+  };
 }
 
-export function OurPriorities() {
+export function WhyChooseUs() {
   const { t, isRTL } = useI18n();
 
-  // Using translations for all priorities
+  // Priorities with integrated stats
   const priorities: Priority[] = [
     {
       icon: CreditCard,
@@ -27,6 +35,11 @@ export function OurPriorities() {
       color: 'text-gold-600',
       bgColor: 'bg-gold-600/20',
       delay: 0.1,
+      stat: {
+        value: 50000,
+        suffix: '+',
+        label: t.home.stats.happyCustomers,
+      },
     },
     {
       icon: Headphones,
@@ -35,6 +48,11 @@ export function OurPriorities() {
       color: 'text-blue-400',
       bgColor: 'bg-blue-400/20',
       delay: 0.2,
+      stat: {
+        value: 100000,
+        suffix: '+',
+        label: t.home.stats.productsSold,
+      },
     },
     {
       icon: Award,
@@ -43,6 +61,12 @@ export function OurPriorities() {
       color: 'text-green-400',
       bgColor: 'bg-green-400/20',
       delay: 0.3,
+      stat: {
+        value: 4.9,
+        suffix: '/5',
+        label: t.home.stats.averageRating,
+        decimals: 1,
+      },
     },
     {
       icon: ShieldCheck,
@@ -51,11 +75,16 @@ export function OurPriorities() {
       color: 'text-purple-400',
       bgColor: 'bg-purple-400/20',
       delay: 0.4,
+      stat: {
+        value: 15,
+        suffix: '+',
+        label: t.home.stats.yearsExperience,
+      },
     },
   ];
 
   return (
-    <section className="relative py-20 bg-gradient-to-b from-obsidian-900 via-obsidian-950 to-obsidian-900 overflow-hidden">
+    <section className="relative py-24 bg-gradient-to-b from-obsidian-900 via-obsidian-950 to-obsidian-900 overflow-hidden">
       {/* Background Effects */}
       <div className="absolute inset-0">
         <motion.div
@@ -84,10 +113,10 @@ export function OurPriorities() {
         />
       </div>
 
-      <div className="container mx-auto px-4 relative z-10 max-w-6xl">
+      <div className="container mx-auto px-4 relative z-10 max-w-7xl">
         {/* Header */}
         <ScrollReveal>
-          <div className="text-center mb-16">
+          <div className={cn('text-center mb-16', isRTL && 'text-right')}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -101,9 +130,7 @@ export function OurPriorities() {
             <h2 className={cn('text-4xl md:text-5xl lg:text-6xl font-bold mb-4', isRTL && 'text-right')}>
               <span className="text-white">{t.home.priorities.title}</span>{' '}
               {t.home.priorities.titleHighlight && (
-                <>
-                  <span className="text-gold-600">{t.home.priorities.titleHighlight}</span>
-                </>
+                <span className="text-gold-600">{t.home.priorities.titleHighlight}</span>
               )}
             </h2>
             <p className={cn('text-gray-400 text-lg md:text-xl max-w-2xl mx-auto', isRTL && 'text-right')}>
@@ -112,7 +139,7 @@ export function OurPriorities() {
           </div>
         </ScrollReveal>
 
-        {/* Priorities Grid - 3D Cards */}
+        {/* Priorities Grid with Integrated Stats */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {priorities.map((priority, index) => {
             const Icon = priority.icon;
@@ -142,7 +169,7 @@ export function OurPriorities() {
                   {/* 3D Card */}
                   <div
                     className={cn(
-                      'relative h-full min-h-[280px] p-8 rounded-2xl border border-gold-600/20',
+                      'relative h-full min-h-[320px] p-8 rounded-2xl border border-gold-600/20',
                       'bg-gradient-to-br from-obsidian-900/90 to-obsidian-800/90',
                       'backdrop-blur-sm overflow-hidden flex flex-col',
                       'hover:border-gold-600/40 transition-all duration-300',
@@ -199,13 +226,29 @@ export function OurPriorities() {
                     </motion.div>
 
                     {/* Content */}
-                    <div className="relative z-10 flex-1 flex flex-col">
+                    <div className={cn('relative z-10 flex-1 flex flex-col', isRTL && 'text-right')}>
                       <h3 className={cn('text-xl font-bold text-white mb-3', isRTL && 'text-right')}>
                         {priority.title}
                       </h3>
-                      <p className={cn('text-gray-400 text-sm leading-relaxed flex-1', isRTL && 'text-right')}>
+                      <p className={cn('text-gray-400 text-sm leading-relaxed flex-1 mb-4', isRTL && 'text-right')}>
                         {priority.description}
                       </p>
+
+                      {/* Integrated Stat */}
+                      {priority.stat && (
+                        <div className={cn('mt-auto pt-4 border-t border-gold-600/20', isRTL && 'text-right')}>
+                          <div className="mb-2">
+                            <span className="text-3xl font-bold text-white">
+                              <AnimatedCounter
+                                value={priority.stat.value}
+                                suffix={priority.stat.suffix}
+                                decimals={priority.stat.decimals || 0}
+                              />
+                            </span>
+                          </div>
+                          <p className="text-gray-400 text-xs font-medium">{priority.stat.label}</p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Decorative Corner */}
@@ -246,7 +289,7 @@ export function OurPriorities() {
         {/* Bottom CTA Message */}
         <ScrollReveal delay={0.6}>
           <motion.div
-            className="text-center mt-16"
+            className={cn('text-center mt-16', isRTL && 'text-right')}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -276,4 +319,3 @@ export function OurPriorities() {
     </section>
   );
 }
-

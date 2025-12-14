@@ -1,0 +1,4 @@
+name,sku,price,category_slug,stock,brand,description,short_description,compare_at_price,is_featured,image_url_1,image_url_2
+iPhone 16 Pro,IPHONE-16-PRO,8999,iphone,50,Apple,"Latest iPhone with A18 Pro chip","Premium smartphone with advanced features",9999,true,https://example.com/iphone16-front.jpg,https://example.com/iphone16-back.jpg
+Samsung Galaxy S25,SAMSUNG-S25,7999,android,30,Samsung,"Latest Samsung flagship","Powerful Android device",8499,false,https://example.com/s25-front.jpg,
+AirPods Pro 3,AIRPODS-PRO-3,2499,accessories,100,Apple,"Premium wireless earbuds","Active noise cancellation",,false,https://example.com/airpods.jpg,

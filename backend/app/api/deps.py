@@ -45,7 +45,9 @@ async def get_current_user(
     authorization = request.headers.get("Authorization") or request.headers.get("authorization")
     
     if not authorization:
-        logger.warning("Authorization header missing in request")
+        # Only log as debug since this is expected for public endpoints
+        # Warning will be logged by the caller if authentication was required
+        logger.debug("Authorization header missing in request")
         raise UnauthorizedError("Authorization header missing")
     
     # Extract token from "Bearer <token>"
@@ -165,9 +167,21 @@ async def get_current_user_optional(
     Returns:
         User profile or None
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Check if authorization header exists before attempting authentication
+    authorization = request.headers.get("Authorization") or request.headers.get("authorization")
+    
+    if not authorization:
+        # No authorization header - user is not authenticated (this is OK for optional auth)
+        return None
+    
+    # Try to get user, but don't log warnings if it fails (it's optional)
     try:
         return await get_current_user(request, db)
     except (UnauthorizedError, HTTPException):
+        # Silently return None for optional auth - don't log warnings
         return None
 
 

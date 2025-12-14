@@ -3,10 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, Smartphone, Tablet, Headphones } from 'lucide-react';
 import { ScrollReveal } from '@/components/animations/ScrollReveal';
 import { ParallaxSection } from '@/components/animations/ParallaxSection';
-import { ProductCard } from '@/components/product/ProductCard';
 import { FloatingPhone } from '@/components/animations/FloatingPhone';
 import { FloatingCards } from '@/components/animations/FloatingCards';
 import { productsApi } from '@/lib/api/products';
@@ -15,15 +14,12 @@ import type { Product } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { AnimatedGradientText } from '@/components/ui/AnimatedGradientText';
 import { MagneticButton } from '@/components/ui/MagneticButton';
-import { StatsSection } from '@/components/ui/StatsSection';
-import { TestimonialCarousel } from '@/components/ui/TestimonialCarousel';
-import { ProductSpotlight } from '@/components/ui/ProductSpotlight';
-import { CountdownTimer } from '@/components/ui/CountdownTimer';
-import { PaymentFacilities } from '@/components/ui/PaymentFacilities';
-import { FeaturedProducts3D } from '@/components/ui/FeaturedProducts3D';
-import { OurPriorities } from '@/components/ui/OurPriorities';
 import { AnimatedTooltip } from '@/components/ui/AnimatedTooltip';
+import { FeaturedProductsMerged } from '@/components/ui/FeaturedProductsMerged';
+import { WhyChooseUs } from '@/components/ui/WhyChooseUs';
+import { PaymentAndTrust } from '@/components/ui/PaymentAndTrust';
 import { StoreLocation } from '@/components/ui/StoreLocation';
+import { cn } from '@/lib/utils/cn';
 
 export default function HomePage() {
   const { t, isRTL } = useI18n();
@@ -42,32 +38,33 @@ export default function HomePage() {
       name: t.home.categories.iphone,
       href: '/products?category=iphone',
       description: t.home.categories.iphoneDesc,
+      icon: Smartphone,
     },
     {
       name: t.home.categories.android,
       href: '/products?category=android',
       description: t.home.categories.androidDesc,
+      icon: Tablet,
     },
     {
       name: t.home.categories.accessories,
       href: '/products?category=accessories',
       description: t.home.categories.accessoriesDesc,
+      icon: Headphones,
     },
   ];
-
-  // No images - using stylized outlines instead
 
   return (
     <div className="overflow-hidden relative">
       {/* Spacer for scrolling ticker bar */}
       <div className="h-[52px]" />
       
-      {/* Hero Section */}
+      {/* Enhanced Hero Section with Integrated Categories */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-32 pb-16">
-        {/* Radial gradient overlay matching HTML */}
+        {/* Radial gradient overlay */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_50%,rgba(212,175,55,0.1)_0%,transparent_70%)]" />
         
-        {/* Grid pattern overlay matching HTML hero-grid */}
+        {/* Grid pattern overlay */}
         <div 
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -94,7 +91,7 @@ export default function HomePage() {
                   <span>{t.home.hero.tagline}</span>
                 </motion.div>
 
-                <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight font-serif">
+                <h1 className={cn('text-4xl md:text-6xl lg:text-7xl font-bold leading-tight font-serif', isRTL && 'text-right')}>
                   <AnimatedGradientText className="text-4xl md:text-6xl lg:text-7xl">
                     {t.home.hero.title}
                   </AnimatedGradientText>
@@ -102,7 +99,7 @@ export default function HomePage() {
                   <span className="text-obsidian-50">{t.home.hero.subtitle}</span>
                 </h1>
 
-                <p className="text-xl text-obsidian-300 max-w-lg leading-relaxed">
+                <p className={cn('text-xl text-obsidian-300 max-w-lg leading-relaxed', isRTL && 'text-right')}>
                   {t.home.hero.description}
                 </p>
 
@@ -110,7 +107,7 @@ export default function HomePage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5 }}
-                  className="flex items-center gap-2 text-obsidian-400 text-sm"
+                  className={cn('flex items-center gap-2 text-obsidian-400 text-sm', isRTL && 'flex-row-reverse')}
                 >
                   <span>{t.home.hero.location}</span>
                   <AnimatedTooltip content={t.home.hero.shippingInfo}>
@@ -118,7 +115,7 @@ export default function HomePage() {
                   </AnimatedTooltip>
                 </motion.div>
 
-                <div className="flex flex-wrap gap-4">
+                <div className={cn('flex flex-wrap gap-4', isRTL && 'flex-row-reverse')}>
                   <MagneticButton>
                     <Link href="/products">
                       <Button variant="primary" size="lg">
@@ -135,6 +132,41 @@ export default function HomePage() {
                     </Link>
                   </MagneticButton>
                 </div>
+
+                {/* Integrated Quick Category Navigation */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                  className="pt-8"
+                >
+                  <p className={cn('text-sm text-gray-400 mb-4', isRTL && 'text-right')}>
+                    {t.home.categories.title} {t.home.categories.titleHighlight}:
+                  </p>
+                  <div className={cn('flex flex-wrap gap-3', isRTL && 'flex-row-reverse')}>
+                    {categories.map((category, index) => {
+                      const Icon = category.icon;
+                      return (
+                        <motion.div
+                          key={category.name}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 0.8 + index * 0.1 }}
+                          whileHover={{ scale: 1.05, y: -2 }}
+                        >
+                          <Link href={category.href}>
+                            <div className="flex items-center gap-2 px-4 py-2 bg-obsidian-800/50 border border-gold-600/20 rounded-lg hover:border-gold-600/40 hover:bg-obsidian-800 transition-all cursor-pointer group">
+                              <Icon className="w-4 h-4 text-gold-600 group-hover:scale-110 transition-transform" />
+                              <span className="text-sm font-medium text-gray-300 group-hover:text-gold-600 transition-colors">
+                                {category.name}
+                              </span>
+                            </div>
+                          </Link>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
               </div>
             </ScrollReveal>
 
@@ -162,97 +194,44 @@ export default function HomePage() {
         </motion.div>
       </section>
 
-      {/* Categories Section */}
-      <section className="py-20 bg-obsidian-900">
-        <div className="container mx-auto px-4">
-          <ScrollReveal>
-            <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                {t.home.categories.title} <span className="text-gold-600">{t.home.categories.titleHighlight}</span>
-              </h2>
-              <p className="text-gray-400 text-lg">
-                {t.home.categories.subtitle}
-              </p>
-            </div>
-          </ScrollReveal>
+      {/* Merged Featured Products Section */}
+      <FeaturedProductsMerged products={featuredProducts} loading={loading} />
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {categories.map((category, index) => (
-              <ScrollReveal key={category.name} delay={index * 0.1}>
-                <Link href={category.href}>
-                  <motion.div
-                    className="group relative h-64 rounded-lg overflow-hidden border border-gold-600/10 hover:border-gold-600/30 transition-all"
-                    whileHover={{ y: -8 }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-gold-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 z-10">
-                      <h3 className="text-2xl font-bold text-gold-600 mb-2">
-                        {category.name}
-                      </h3>
-                      <p className="text-gray-400 text-center">{category.description}</p>
-                    </div>
-                  </motion.div>
-                </Link>
-              </ScrollReveal>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Merged Why Choose Us (Priorities + Stats) */}
+      <WhyChooseUs />
 
-      {/* Our Priorities Section - Prominently Displayed */}
-      <OurPriorities />
-
-      {/* Featured Products Section - 3D Version */}
-      <FeaturedProducts3D products={featuredProducts} loading={loading} />
-
-      {/* Stats Section */}
-      <StatsSection />
-
-      {/* Product Spotlight */}
-      {featuredProducts.length > 0 && (
-        <ProductSpotlight products={featuredProducts.slice(0, 3)} />
-      )}
-
-      {/* Payment Facilities Section */}
-      <PaymentFacilities />
-
-      {/* Countdown Timer Section */}
-      <section className="py-20 bg-obsidian-900">
-        <div className="container mx-auto px-4">
-          <div className="max-w-2xl mx-auto">
-            <CountdownTimer
-              targetDate={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)}
-              title={t.home.countdown.title}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <TestimonialCarousel />
+      {/* Merged Payment & Trust (Payment + Testimonials) */}
+      <PaymentAndTrust />
 
       {/* Store Location Section */}
       <StoreLocation />
 
-      {/* CTA Section */}
+      {/* Simplified Final CTA */}
       <ParallaxSection speed={0.3}>
         <section className="py-20 bg-gradient-to-r from-gold-600/10 to-gold-700/10 border-y border-gold-600/20">
           <div className="container mx-auto px-4 text-center">
             <ScrollReveal>
-              <h2 className="text-4xl md:text-5xl font-bold mb-6">
-                <AnimatedGradientText>{t.home.cta.title}</AnimatedGradientText>
-              </h2>
-              <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
-                {t.home.cta.description}
-              </p>
-              <MagneticButton>
-                <Link href="/products">
-                  <Button variant="primary" size="lg">
-                    {t.home.cta.startShopping}
-                    <ArrowRight className={isRTL ? 'w-5 h-5 mr-2 rotate-180' : 'w-5 h-5 ml-2'} />
-                  </Button>
-                </Link>
-              </MagneticButton>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6 }}
+              >
+                <h2 className={cn('text-4xl md:text-5xl font-bold mb-6', isRTL && 'text-right')}>
+                  <AnimatedGradientText>{t.home.cta.title}</AnimatedGradientText>
+                </h2>
+                <p className={cn('text-xl text-gray-400 mb-8 max-w-2xl mx-auto', isRTL && 'text-right')}>
+                  {t.home.cta.description}
+                </p>
+                <MagneticButton>
+                  <Link href="/products">
+                    <Button variant="primary" size="lg">
+                      {t.home.cta.startShopping}
+                      <ArrowRight className={isRTL ? 'w-5 h-5 mr-2 rotate-180' : 'w-5 h-5 ml-2'} />
+                    </Button>
+                  </Link>
+                </MagneticButton>
+              </motion.div>
             </ScrollReveal>
           </div>
         </section>
@@ -260,4 +239,3 @@ export default function HomePage() {
     </div>
   );
 }
-
