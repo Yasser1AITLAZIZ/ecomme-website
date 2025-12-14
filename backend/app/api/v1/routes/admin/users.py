@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status, Request, Path
 from typing import Optional, List
 import httpx
+import logging
 from app.api.v1.deps import get_db
 from app.api.deps import validate_uuid
 from app.core.permissions import require_admin
@@ -18,6 +19,8 @@ from app.core.exceptions import NotFoundError
 from app.services.audit_service import AuditService
 from app.config import settings
 from supabase import Client
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin/users", tags=["Admin - Users"])
 
@@ -579,7 +582,8 @@ async def delete_user(
 ):
     """
     Delete user (admin only).
-    Deletes user from both auth.users and user_profiles.
+    Deletes user from auth.users first, then relies on database CASCADE
+    to automatically delete the corresponding user_profiles record.
     """
     # Validate UUID
     if not validate_uuid(user_id):
@@ -588,7 +592,7 @@ async def delete_user(
             detail="Invalid UUID format"
         )
     try:
-        # Get existing user
+        # Get existing user profile
         existing = db.table("user_profiles").select("*").eq("id", user_id).execute()
         if not existing.data:
             raise NotFoundError("User", user_id)
@@ -609,15 +613,17 @@ async def delete_user(
             old_values=existing.data[0]
         )
         
-        # Delete from auth.users using Admin API
+        # Delete from auth.users FIRST using Admin API
+        # This is critical - if this fails, we must NOT delete the profile
+        # to prevent users from being able to authenticate after "deletion"
+        admin_api_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{user_id}"
+        headers = {
+            "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+            "Content-Type": "application/json"
+        }
+        
         try:
-            admin_api_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{user_id}"
-            headers = {
-                "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
-                "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
-                "Content-Type": "application/json"
-            }
-            
             async with httpx.AsyncClient() as client:
                 delete_response = await client.delete(
                     admin_api_url,
@@ -625,18 +631,107 @@ async def delete_user(
                     timeout=10.0
                 )
                 
+                # Check if deletion was successful
                 if delete_response.status_code not in [200, 204]:
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.warning(f"Failed to delete user from auth: {delete_response.status_code}")
+                    error_detail = f"Failed to delete user from auth.users: HTTP {delete_response.status_code}"
+                    try:
+                        error_body = delete_response.text
+                        if error_body:
+                            # Try to parse JSON error for better error messages
+                            try:
+                                error_json = delete_response.json()
+                                if isinstance(error_json, dict):
+                                    error_message = error_json.get("message", "")
+                                    error_code = error_json.get("code", "")
+                                    
+                                    # Provide user-friendly error messages for common issues
+                                    if "23503" in error_code or "foreign key" in error_message.lower():
+                                        error_detail = (
+                                            "Cannot delete user: User has associated records in the database. "
+                                            "This may be due to audit logs, orders, or other related data. "
+                                            "Please contact an administrator or check database constraints."
+                                        )
+                                    elif error_message:
+                                        error_detail = f"Failed to delete user: {error_message}"
+                                    else:
+                                        error_detail += f" - {error_body}"
+                                else:
+                                    error_detail += f" - {error_body}"
+                            except Exception:
+                                # If JSON parsing fails, use raw text
+                                error_detail += f" - {error_body}"
+                    except Exception:
+                        pass
+                    
+                    logger.error(
+                        f"Auth deletion failed for user {user_id}: {error_detail}",
+                        extra={"user_id": user_id, "status_code": delete_response.status_code}
+                    )
+                    
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=error_detail
+                    )
+                
+                logger.info(f"Successfully deleted user {user_id} from auth.users")
+                
+                # Optional: Verify deletion succeeded
+                verify_response = await client.get(
+                    admin_api_url,
+                    headers=headers,
+                    timeout=10.0
+                )
+                
+                if verify_response.status_code == 200:
+                    # User still exists - this shouldn't happen but log it
+                    logger.warning(
+                        f"User {user_id} still exists in auth.users after deletion attempt",
+                        extra={"user_id": user_id}
+                    )
+                elif verify_response.status_code == 404:
+                    # User successfully deleted (expected)
+                    logger.debug(f"Verified: user {user_id} deleted from auth.users")
+                else:
+                    # Couldn't verify - log but don't fail
+                    logger.warning(
+                        f"Could not verify deletion of user {user_id}: HTTP {verify_response.status_code}",
+                        extra={"user_id": user_id, "status_code": verify_response.status_code}
+                    )
+                    
+        except HTTPException:
+            # Re-raise HTTP exceptions (our own error handling)
+            raise
+        except httpx.TimeoutException as e:
+            logger.error(
+                f"Timeout while deleting user {user_id} from auth.users: {str(e)}",
+                extra={"user_id": user_id}
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Timeout while deleting user from authentication system. Please try again."
+            )
+        except httpx.RequestError as e:
+            logger.error(
+                f"Request error while deleting user {user_id} from auth.users: {str(e)}",
+                extra={"user_id": user_id}
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Network error while deleting user from authentication system: {str(e)}"
+            )
         except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Failed to delete user from auth.users: {str(e)}")
-            # Continue to delete profile even if auth deletion fails
+            logger.error(
+                f"Unexpected error while deleting user {user_id} from auth.users: {str(e)}",
+                extra={"user_id": user_id},
+                exc_info=True
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete user from authentication system: {str(e)}"
+            )
         
-        # Delete user profile
-        db.table("user_profiles").delete().eq("id", user_id).execute()
+        # Profile will be automatically deleted via CASCADE constraint
+        # when auth.users record is deleted, so no manual deletion needed
         
         return None
     except NotFoundError:
@@ -644,9 +739,149 @@ async def delete_user(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(
+            f"Unexpected error in delete_user endpoint for user {user_id}: {str(e)}",
+            extra={"user_id": user_id},
+            exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete user: {str(e)}"
+        )
+
+
+@router.post("/sync-profiles", status_code=status.HTTP_200_OK)
+async def sync_user_profiles(
+    db: Client = Depends(get_db),
+    current_user: UserProfile = Depends(require_admin)
+):
+    """
+    Synchronize user_profiles with auth.users.
+    Creates missing user_profiles for users that exist in auth.users but not in user_profiles.
+    """
+    from datetime import datetime
+    
+    try:
+        # Get all users from auth.users using Admin API
+        admin_api_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users"
+        headers = {
+            "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            auth_response = await client.get(admin_api_url, headers=headers, timeout=30.0)
+            
+            if auth_response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to fetch users from auth.users: HTTP {auth_response.status_code}"
+                )
+            
+            auth_users = auth_response.json().get("users", [])
+        
+        # Get existing profiles
+        existing_profiles = db.table("user_profiles").select("id").execute()
+        existing_profile_ids = {profile["id"] for profile in existing_profiles.data}
+        
+        # Find missing users and create profiles
+        created_count = 0
+        error_count = 0
+        created_users = []
+        errors = []
+        
+        for user in auth_users:
+            user_id = user.get("id")
+            if not user_id:
+                continue
+            
+            # Skip if profile already exists
+            if user_id in existing_profile_ids:
+                continue
+            
+            # Extract user metadata
+            user_metadata = user.get("user_metadata", {}) or {}
+            email = user.get("email", "")
+            
+            # Prepare profile data
+            profile_data = {
+                "id": user_id,
+                "name": user_metadata.get("name") or (email.split("@")[0] if email else "User"),
+                "phone": user_metadata.get("phone"),
+                "role": "customer",  # Default role
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat()
+            }
+            
+            try:
+                # Insert profile
+                result = db.table("user_profiles").insert(profile_data).execute()
+                
+                if result.data:
+                    created_count += 1
+                    created_users.append({
+                        "id": user_id,
+                        "email": email,
+                        "name": profile_data["name"]
+                    })
+                    logger.info(f"Created profile for user: {email} ({user_id})")
+                else:
+                    error_count += 1
+                    errors.append({
+                        "id": user_id,
+                        "email": email,
+                        "error": "No data returned from insert"
+                    })
+                    
+            except Exception as e:
+                error_msg = str(e)
+                # Check if it's a duplicate key error (race condition)
+                if "duplicate key" in error_msg.lower() or "already exists" in error_msg.lower():
+                    logger.debug(f"Profile already exists for user: {email} ({user_id})")
+                else:
+                    error_count += 1
+                    errors.append({
+                        "id": user_id,
+                        "email": email,
+                        "error": error_msg
+                    })
+                    logger.error(f"Error creating profile for user: {email} ({user_id}): {error_msg}")
+        
+        # Log audit
+        AuditService.log_action(
+            user_id=current_user.id,
+            action="user.sync_profiles",
+            resource_type="user",
+            resource_id=None,
+            new_values={
+                "total_auth_users": len(auth_users),
+                "existing_profiles": len(existing_profile_ids),
+                "created_profiles": created_count,
+                "errors": error_count
+            }
+        )
+        
+        return {
+            "message": "User profiles synchronized",
+            "summary": {
+                "total_auth_users": len(auth_users),
+                "existing_profiles": len(existing_profile_ids),
+                "missing_profiles": len(auth_users) - len(existing_profile_ids),
+                "created": created_count,
+                "errors": error_count
+            },
+            "created_users": created_users,
+            "errors": errors
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error synchronizing user profiles: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to synchronize user profiles: {str(e)}"
         )
 
 
