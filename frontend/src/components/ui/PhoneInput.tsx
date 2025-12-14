@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, type ComponentProps } from 'react';
+import { forwardRef, useRef, useEffect, type ComponentProps } from 'react';
 import PhoneInputWithCountry, { type Value as PhoneValue } from 'react-phone-number-input';
 import flags from 'react-phone-number-input/flags';
 import 'react-phone-number-input/style.css';
@@ -17,6 +17,58 @@ interface CustomPhoneInputProps extends Omit<PhoneInputProps, 'className'> {
 export const PhoneInput = forwardRef<HTMLInputElement, CustomPhoneInputProps>(
   ({ label, error, className, id, value, onChange, ...props }, ref) => {
     const inputId = id || `phone-input-${label?.toLowerCase().replace(/\s+/g, '-')}`;
+    const countrySelectRef = useRef<HTMLSelectElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // Ensure the country select element is accessible after mount and prevent focus errors
+    useEffect(() => {
+      if (!containerRef.current) return;
+
+      const ensureSelectElement = () => {
+        const selectElement = containerRef.current?.querySelector<HTMLSelectElement>('.PhoneInputCountrySelect');
+        if (selectElement && selectElement !== countrySelectRef.current) {
+          countrySelectRef.current = selectElement;
+          // Ensure the element is accessible
+          selectElement.setAttribute('tabindex', '0');
+          
+          // Override focus method to prevent null reference errors
+          const originalFocus = selectElement.focus;
+          selectElement.focus = function(this: HTMLSelectElement) {
+            try {
+              if (this && this !== null && document.body.contains(this)) {
+                originalFocus.call(this);
+              }
+            } catch (err) {
+              // Silently handle focus errors - the library may try to focus before element is ready
+            }
+          };
+        }
+      };
+
+      // Run immediately
+      ensureSelectElement();
+
+      // Use MutationObserver to watch for when the select element is added to DOM
+      const observer = new MutationObserver(() => {
+        ensureSelectElement();
+      });
+
+      observer.observe(containerRef.current, {
+        childList: true,
+        subtree: true,
+      });
+
+      // Also check after delays to catch any async rendering
+      const timeoutIds = [
+        setTimeout(ensureSelectElement, 50),
+        setTimeout(ensureSelectElement, 200),
+      ];
+      
+      return () => {
+        observer.disconnect();
+        timeoutIds.forEach(id => clearTimeout(id));
+      };
+    }, [value]);
 
     return (
       <div className="w-full">
@@ -28,14 +80,17 @@ export const PhoneInput = forwardRef<HTMLInputElement, CustomPhoneInputProps>(
             {label}
           </label>
         )}
-        <div className={cn(
-          'relative flex items-stretch',
-          'bg-black-100 border rounded-lg',
-          'focus-within:ring-2 focus-within:ring-gold-600 focus-within:border-transparent',
-          'transition-all duration-200',
-          error && 'border-red-500 focus-within:ring-red-500',
-          !error && 'border-black-300'
-        )}>
+        <div 
+          ref={containerRef}
+          className={cn(
+            'relative flex items-stretch',
+            'bg-black-100 border rounded-lg',
+            'focus-within:ring-2 focus-within:ring-gold-600 focus-within:border-transparent',
+            'transition-all duration-200',
+            error && 'border-red-500 focus-within:ring-red-500',
+            !error && 'border-black-300'
+          )}
+        >
           <PhoneInputWithCountry
             {...props}
             id={inputId}
@@ -124,6 +179,10 @@ export const PhoneInput = forwardRef<HTMLInputElement, CustomPhoneInputProps>(
             color: #000 !important;
             pointer-events: auto !important;
             display: block !important;
+            visibility: visible !important;
+            -webkit-appearance: menulist !important;
+            -moz-appearance: menulist !important;
+            appearance: menulist !important;
           }
           
           /* Style native option elements to ensure visibility */
