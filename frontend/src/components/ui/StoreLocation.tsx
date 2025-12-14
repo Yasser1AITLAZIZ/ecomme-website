@@ -5,6 +5,7 @@ import { MapPin, Navigation, Clock, Phone } from 'lucide-react';
 import { ScrollReveal } from '@/components/animations/ScrollReveal';
 import { useI18n } from '@/lib/i18n/context';
 import { Button } from './Button';
+import { cn } from '@/lib/utils/cn';
 
 export function StoreLocation() {
   const { t, isRTL } = useI18n();
@@ -27,7 +28,7 @@ export function StoreLocation() {
       
       <div className="container mx-auto px-4 relative z-10 max-w-7xl">
         <ScrollReveal>
-          <div className="text-center mb-12">
+          <div className={cn('text-center mb-12', isRTL && 'text-right')}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -39,7 +40,7 @@ export function StoreLocation() {
               <span>{t.home.location?.badge || 'Visit Our Store'}</span>
             </motion.div>
             
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 font-serif">
+            <h2 className={cn('text-4xl md:text-5xl font-bold mb-4 font-serif', isRTL && 'text-right')}>
               <span className="bg-gradient-to-r from-gold-400 via-gold-500 to-gold-600 bg-clip-text text-transparent">
                 {t.home.location?.title || 'Find Us'}
               </span>
@@ -49,15 +50,15 @@ export function StoreLocation() {
               </span>
             </h2>
             
-            <p className="text-xl text-obsidian-300 max-w-2xl mx-auto">
+            <p className={cn('text-xl text-obsidian-300 max-w-2xl mx-auto', isRTL && 'text-right')}>
               {t.home.location?.subtitle || 'Visit our physical store and experience our premium products in person'}
             </p>
           </div>
         </ScrollReveal>
 
-        <div className="grid lg:grid-cols-2 gap-8 items-start">
+        <div className={cn('grid lg:grid-cols-2 gap-8 items-start', isRTL && 'lg:grid-flow-col-dense')}>
           {/* Map */}
-          <ScrollReveal direction="left" delay={0.2}>
+          <ScrollReveal direction={isRTL ? "right" : "left"} delay={0.2}>
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -85,8 +86,8 @@ export function StoreLocation() {
           </ScrollReveal>
 
           {/* Store Information */}
-          <ScrollReveal direction="right" delay={0.3}>
-            <div className="space-y-6">
+          <ScrollReveal direction={isRTL ? "left" : "right"} delay={0.3}>
+            <div className={cn('space-y-6', isRTL && 'text-right')}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -94,15 +95,15 @@ export function StoreLocation() {
                 transition={{ duration: 0.6, delay: 0.3 }}
                 className="bg-obsidian-800/50 backdrop-blur-sm border border-gold-500/20 rounded-xl p-6"
               >
-                <div className="flex items-start gap-4 mb-4">
+                <div className={cn('flex items-start gap-4 mb-4', isRTL && 'flex-row-reverse')}>
                   <div className="p-3 bg-gold-500/10 rounded-lg">
                     <MapPin className="w-6 h-6 text-gold-500" />
                   </div>
-                  <div className="flex-1">
+                  <div className={cn('flex-1', isRTL && 'text-right')}>
                     <h3 className="text-xl font-bold text-gold-500 mb-2">
                       {t.home.location?.addressTitle || 'Store Address'}
                     </h3>
-                    <p className="text-obsidian-200 leading-relaxed">
+                    <p className={cn('text-obsidian-200 leading-relaxed', isRTL && 'text-right')}>
                       {t.home.location?.address || 'Boulevard Azhar, Quartier Azhar'}
                       <br />
                       <span className="text-obsidian-400">
@@ -121,28 +122,28 @@ export function StoreLocation() {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="bg-obsidian-800/50 backdrop-blur-sm border border-gold-500/20 rounded-xl p-6"
               >
-                <div className="flex items-start gap-4">
+                <div className={cn('flex items-start gap-4', isRTL && 'flex-row-reverse')}>
                   <div className="p-3 bg-gold-500/10 rounded-lg">
                     <Clock className="w-6 h-6 text-gold-500" />
                   </div>
-                  <div className="flex-1">
+                  <div className={cn('flex-1', isRTL && 'text-right')}>
                     <h3 className="text-xl font-bold text-gold-500 mb-3">
                       {t.home.location?.hoursTitle || 'Opening Hours'}
                     </h3>
-                    <div className="space-y-2 text-obsidian-200">
-                      <div className="flex justify-between">
+                    <div className={cn('space-y-2 text-obsidian-200', isRTL && 'text-right')}>
+                      <div className={cn('flex justify-between', isRTL && 'flex-row-reverse')}>
                         <span>{t.home.location?.weekdays || 'Monday - Friday'}</span>
                         <span className="text-gold-500 font-semibold">
                           {t.home.location?.weekdaysHours || '9:00 AM - 8:00 PM'}
                         </span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className={cn('flex justify-between', isRTL && 'flex-row-reverse')}>
                         <span>{t.home.location?.saturday || 'Saturday'}</span>
                         <span className="text-gold-500 font-semibold">
                           {t.home.location?.saturdayHours || '9:00 AM - 7:00 PM'}
                         </span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className={cn('flex justify-between', isRTL && 'flex-row-reverse')}>
                         <span>{t.home.location?.sunday || 'Sunday'}</span>
                         <span className="text-gold-500 font-semibold">
                           {t.home.location?.sundayHours || '10:00 AM - 6:00 PM'}
@@ -161,15 +162,15 @@ export function StoreLocation() {
                 transition={{ duration: 0.6, delay: 0.5 }}
                 className="bg-obsidian-800/50 backdrop-blur-sm border border-gold-500/20 rounded-xl p-6"
               >
-                <div className="flex items-start gap-4">
+                <div className={cn('flex items-start gap-4', isRTL && 'flex-row-reverse')}>
                   <div className="p-3 bg-gold-500/10 rounded-lg">
                     <Phone className="w-6 h-6 text-gold-500" />
                   </div>
-                  <div className="flex-1">
+                  <div className={cn('flex-1', isRTL && 'text-right')}>
                     <h3 className="text-xl font-bold text-gold-500 mb-2">
                       {t.home.location?.contactTitle || 'Contact Us'}
                     </h3>
-                    <p className="text-obsidian-200">
+                    <p className={cn('text-obsidian-200', isRTL && 'text-right')}>
                       {t.home.location?.phone || 'Phone: +212 XXX XXX XXX'}
                     </p>
                   </div>

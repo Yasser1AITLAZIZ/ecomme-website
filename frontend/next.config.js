@@ -19,6 +19,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'www.apple.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'brmfdagagfpwbqgvcstg.supabase.co',
+      },
     ],
     // Optimize images for production
     formats: ['image/avif', 'image/webp'],

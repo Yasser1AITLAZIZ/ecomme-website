@@ -56,7 +56,8 @@ from app.api.v1.routes.admin import (
     settings as admin_settings,
     audit as admin_audit,
     security as admin_security,
-    leads as admin_leads
+    leads as admin_leads,
+    products as admin_products
 )
 
 app.include_router(auth.router, prefix=f"/api/{settings.API_VERSION}")
@@ -75,6 +76,7 @@ app.include_router(admin_analytics.router, prefix=f"/api/{settings.API_VERSION}"
 app.include_router(admin_users.router, prefix=f"/api/{settings.API_VERSION}")
 app.include_router(admin_orders.router, prefix=f"/api/{settings.API_VERSION}")
 app.include_router(admin_categories.router, prefix=f"/api/{settings.API_VERSION}")
+app.include_router(admin_products.router, prefix=f"/api/{settings.API_VERSION}")
 app.include_router(admin_settings.router, prefix=f"/api/{settings.API_VERSION}")
 app.include_router(admin_audit.router, prefix=f"/api/{settings.API_VERSION}")
 app.include_router(admin_security.router, prefix=f"/api/{settings.API_VERSION}")

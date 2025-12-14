@@ -10,6 +10,9 @@
 5. redirection après email de confirmation vers la page login du siteweb
 
 
+6. the users on dashboard of admin are not sychro with the user table in db
+
+
 uvicorn app.main:app --reload
 
 npm run dev

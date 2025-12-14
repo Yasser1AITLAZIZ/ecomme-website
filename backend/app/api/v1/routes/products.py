@@ -1,6 +1,6 @@
 """Product routes."""
 from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from app.api.v1.deps import get_db, get_current_user_optional, validate_uuid_param
 from app.core.permissions import require_admin
 from app.schemas.product import Product, ProductCreate, ProductUpdate
@@ -13,7 +13,7 @@ from supabase import Client
 router = APIRouter(prefix="/products", tags=["Products"])
 
 
-@router.get("", response_model=List[Product])
+@router.get("")
 @rate_limit("100/minute")
 async def list_products(
     request: Request,
@@ -33,7 +33,8 @@ async def list_products(
         List of products
     """
     try:
-        query = db.table("products").select("*")
+        # Select products with their images
+        query = db.table("products").select("*, product_images(*)")
         
         # Apply filters
         query = query.eq("is_active", True).is_("deleted_at", "null")
@@ -79,25 +80,41 @@ async def list_products(
         products = []
         for item in response.data or []:
             try:
+                # Extract images from product_images relation before converting to Product schema
+                product_images = []
+                if item.get("product_images"):
+                    # Keep full image objects for frontend sorting
+                    product_images = item["product_images"]
+                
+                # Remove product_images from item before converting to Product schema
+                product_data = {k: v for k, v in item.items() if k != "product_images"}
+                
                 # Ensure required fields have defaults if missing
-                if "sku" not in item or not item["sku"]:
-                    item["sku"] = f"SKU-{item.get('id', 'unknown')}"
-                if "slug" not in item or not item["slug"]:
+                if "sku" not in product_data or not product_data["sku"]:
+                    product_data["sku"] = f"SKU-{product_data.get('id', 'unknown')}"
+                if "slug" not in product_data or not product_data["slug"]:
                     # Generate slug from name if missing
-                    name = item.get("name", "product")
-                    item["slug"] = name.lower().replace(" ", "-").replace("'", "")
+                    name = product_data.get("name", "product")
+                    product_data["slug"] = name.lower().replace(" ", "-").replace("'", "")
                 
                 # Ensure Decimal fields are properly handled
-                if "price" in item and item["price"] is not None:
-                    item["price"] = str(item["price"])
-                if "compare_at_price" in item and item["compare_at_price"] is not None:
-                    item["compare_at_price"] = str(item["compare_at_price"])
-                if "cost_price" in item and item["cost_price"] is not None:
-                    item["cost_price"] = str(item["cost_price"])
-                if "weight" in item and item["weight"] is not None:
-                    item["weight"] = str(item["weight"])
+                if "price" in product_data and product_data["price"] is not None:
+                    product_data["price"] = str(product_data["price"])
+                if "compare_at_price" in product_data and product_data["compare_at_price"] is not None:
+                    product_data["compare_at_price"] = str(product_data["compare_at_price"])
+                if "cost_price" in product_data and product_data["cost_price"] is not None:
+                    product_data["cost_price"] = str(product_data["cost_price"])
+                if "weight" in product_data and product_data["weight"] is not None:
+                    product_data["weight"] = str(product_data["weight"])
                 
-                products.append(Product(**item))
+                # Convert to Product schema
+                product = Product(**product_data)
+                
+                # Add images to the product dict (Pydantic model_dump will include it)
+                product_dict = product.model_dump()
+                product_dict["product_images"] = product_images
+                
+                products.append(product_dict)
             except Exception as e:
                 # Log error but continue with other products
                 import structlog
@@ -116,7 +133,7 @@ async def list_products(
         )
 
 
-@router.get("/{product_id}", response_model=Product)
+@router.get("/{product_id}")
 async def get_product(
     product_id: str,
     db: Client = Depends(get_db)
@@ -129,10 +146,10 @@ async def get_product(
     """
     # Try as UUID first
     if validate_uuid(product_id):
-        query = db.table("products").select("*").eq("id", product_id)
+        query = db.table("products").select("*, product_images(*)").eq("id", product_id)
     else:
         # Try as slug
-        query = db.table("products").select("*").eq("slug", sanitize_input(product_id))
+        query = db.table("products").select("*, product_images(*)").eq("slug", sanitize_input(product_id))
     
     query = query.eq("is_active", True).is_("deleted_at", "null")
     response = query.execute()
@@ -140,7 +157,22 @@ async def get_product(
     if not response.data:
         raise NotFoundError("Product", product_id)
     
-    return Product(**response.data[0])
+    item = response.data[0]
+    
+    # Extract images from product_images relation
+    product_images = item.get("product_images", [])
+    
+    # Remove product_images before converting to Product schema
+    product_data = {k: v for k, v in item.items() if k != "product_images"}
+    
+    # Convert to Product schema
+    product = Product(**product_data)
+    
+    # Add images to response
+    product_dict = product.model_dump()
+    product_dict["product_images"] = product_images
+    
+    return product_dict
 
 
 @router.post("", response_model=Product, status_code=201)
