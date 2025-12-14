@@ -43,7 +43,20 @@ from app.api.v1.routes import (
     coupons,
     wishlist,
     shipping,
-    images
+    images,
+    contact
+)
+
+# Include admin routers
+from app.api.v1.routes.admin import (
+    analytics as admin_analytics,
+    users as admin_users,
+    orders as admin_orders,
+    categories as admin_categories,
+    settings as admin_settings,
+    audit as admin_audit,
+    security as admin_security,
+    leads as admin_leads
 )
 
 app.include_router(auth.router, prefix=f"/api/{settings.API_VERSION}")
@@ -55,6 +68,17 @@ app.include_router(coupons.router, prefix=f"/api/{settings.API_VERSION}")
 app.include_router(wishlist.router, prefix=f"/api/{settings.API_VERSION}")
 app.include_router(shipping.router, prefix=f"/api/{settings.API_VERSION}")
 app.include_router(images.router, prefix=f"/api/{settings.API_VERSION}")
+app.include_router(contact.router, prefix=f"/api/{settings.API_VERSION}")
+
+# Include admin routers
+app.include_router(admin_analytics.router, prefix=f"/api/{settings.API_VERSION}")
+app.include_router(admin_users.router, prefix=f"/api/{settings.API_VERSION}")
+app.include_router(admin_orders.router, prefix=f"/api/{settings.API_VERSION}")
+app.include_router(admin_categories.router, prefix=f"/api/{settings.API_VERSION}")
+app.include_router(admin_settings.router, prefix=f"/api/{settings.API_VERSION}")
+app.include_router(admin_audit.router, prefix=f"/api/{settings.API_VERSION}")
+app.include_router(admin_security.router, prefix=f"/api/{settings.API_VERSION}")
+app.include_router(admin_leads.router, prefix=f"/api/{settings.API_VERSION}")
 
 
 @app.get("/")

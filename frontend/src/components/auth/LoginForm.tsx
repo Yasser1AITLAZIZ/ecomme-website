@@ -39,6 +39,9 @@ export function LoginForm() {
       setIsLoading(true);
       setError(null);
       const response = await authApi.login(data.email, data.password);
+      if (!response.token) {
+        throw new Error('Login failed: No token received');
+      }
       login(response.user, response.token);
       router.push('/account');
     } catch (err) {
@@ -47,7 +50,7 @@ export function LoginForm() {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Login failed. Please try again.');
+        setError(t.auth.login.loginFailed);
       }
     } finally {
       setIsLoading(false);
@@ -80,7 +83,7 @@ export function LoginForm() {
         />
         <div className="mt-2 text-right">
           <Link href="/forgot-password" className="text-sm text-gold-600 hover:text-gold-500 transition-colors">
-            Forgot Password?
+            {t.auth.login.forgotPassword}
           </Link>
         </div>
       </div>
@@ -88,10 +91,6 @@ export function LoginForm() {
       <Button type="submit" variant="primary" className="w-full" isLoading={isLoading}>
         {t.auth.login.signIn}
       </Button>
-
-      <p className="text-center text-sm text-gray-400">
-        {t.auth.login.demoCredentials}
-      </p>
     </form>
   );
 }

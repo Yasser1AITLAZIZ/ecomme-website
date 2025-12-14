@@ -14,6 +14,8 @@ import { ordersApi } from '@/lib/api/orders';
 import { ScrollReveal } from '@/components/animations/ScrollReveal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { PhoneInput } from '@/components/ui/PhoneInput';
+import { phoneSchema } from '@/lib/validations/phone';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -29,7 +31,7 @@ export default function CheckoutPage() {
     firstName: z.string().min(2, t.checkout.firstName + ' is required'),
     lastName: z.string().min(2, t.checkout.lastName + ' is required'),
     email: z.string().email(t.checkout.invalidEmail),
-    phone: z.string().min(10, t.checkout.phone + ' is required'),
+    phone: phoneSchema,
     street: z.string().min(5, t.checkout.street + ' is required'),
     city: z.string().min(2, t.checkout.city + ' is required'),
     state: z.string().min(2, t.checkout.state + ' is required'),
@@ -68,8 +70,7 @@ export default function CheckoutPage() {
           state: data.state,
           zipCode: data.zipCode,
           country: data.country,
-        },
-        total
+        }
       );
       setOrderId(order.id);
       clearCart();
@@ -166,9 +167,8 @@ export default function CheckoutPage() {
                   {...register('email')}
                 />
 
-                <Input
+                <PhoneInput
                   label={t.checkout.phone}
-                  type="tel"
                   error={errors.phone?.message}
                   {...register('phone')}
                 />

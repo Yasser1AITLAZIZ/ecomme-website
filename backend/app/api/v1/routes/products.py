@@ -39,7 +39,25 @@ async def list_products(
         query = query.eq("is_active", True).is_("deleted_at", "null")
         
         if category:
-            query = query.eq("category_id", category)
+            # Resolve category slug to category_id if needed
+            category_id = None
+            if validate_uuid(category):
+                # Category is already a UUID, use it directly
+                category_id = category
+            else:
+                # Category is a slug, look it up in the categories table
+                category_clean = sanitize_input(category)
+                category_result = db.table("categories").select("id").eq("slug", category_clean).eq("is_active", True).execute()
+                if not category_result.data:
+                    # Category not found - return empty list
+                    import structlog
+                    logger = structlog.get_logger()
+                    logger.warning("Category not found", category_slug=category_clean)
+                    return []
+                category_id = category_result.data[0]["id"]
+            
+            # Filter products by the resolved category_id
+            query = query.eq("category_id", category_id)
         if brand:
             query = query.eq("brand", brand)
         if featured is not None:

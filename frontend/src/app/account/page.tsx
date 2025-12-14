@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, Package, Settings, Mail, Phone } from 'lucide-react';
+import { User, Package, Settings, Mail, Phone, LayoutDashboard } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/authStore';
 import { ScrollReveal } from '@/components/animations/ScrollReveal';
 import { useI18n } from '@/lib/i18n/context';
@@ -37,6 +37,16 @@ export default function AccountPage() {
       description: t.account.profileDesc,
     },
   ];
+
+  // Add admin dashboard button if user is admin
+  if (user?.role === 'admin') {
+    menuItems.push({
+      icon: LayoutDashboard,
+      label: t.account.adminDashboard,
+      href: '/admin/dashboard',
+      description: t.account.adminDashboardDesc,
+    });
+  }
 
   return (
     <div className="space-y-8">

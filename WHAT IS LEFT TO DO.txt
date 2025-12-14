@@ -7,4 +7,9 @@
 3. les messages comme mdp erroné et adresse mail existante sont toujours en anglais, il faut suivre la langue du site !
 
 
-4. lorsqu'on modifie l'email client il y a pas un process qui reverfie le nv email entré !
+5. redirection après email de confirmation vers la page login du siteweb
+
+
+uvicorn app.main:app --reload
+
+npm run dev

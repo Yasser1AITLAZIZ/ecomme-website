@@ -1,41 +1,68 @@
 'use client';
 
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useI18n } from '@/lib/i18n/context';
 import { ScrollReveal } from '@/components/animations/ScrollReveal';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { useToast } from '@/components/ui/Toast';
+import { optionalPhoneSchema } from '@/lib/validations/phone';
+import { cn } from '@/lib/utils/cn';
 import { Mail, Phone, MapPin, Clock, Send } from 'lucide-react';
+import { contactApi } from '@/lib/api/contact';
+
+const contactSchema = z.object({
+  name: z.string().min(2, 'Name is required'),
+  email: z.string().email('Please enter a valid email address'),
+  phone: optionalPhoneSchema,
+  subject: z.string().min(2, 'Subject is required'),
+  message: z.string().min(10, 'Message must be at least 10 characters'),
+});
+
+type ContactFormData = z.infer<typeof contactSchema>;
 
 export default function ContactPage() {
   const { t, isRTL } = useI18n();
   const { showToast } = useToast();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    subject: '',
-    message: '',
-  });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<ContactFormData>({
+    resolver: zodResolver(contactSchema),
+  });
+
+  const onSubmit = async (data: ContactFormData) => {
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await contactApi.submit({
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        subject: data.subject,
+        message: data.message,
+      });
       showToast({
         message: t.company.contact.form.success,
         type: 'success',
       });
-      setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+      reset();
+    } catch (error: any) {
+      showToast({
+        message: error.response?.data?.detail || 'Failed to submit contact form. Please try again.',
+        type: 'error',
+      });
+    } finally {
       setIsSubmitting(false);
-    }, 1500);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    }
   };
 
   return (
@@ -54,60 +81,46 @@ export default function ContactPage() {
         <ScrollReveal delay={0.1}>
           <div className="bg-black-50 rounded-lg p-8 border border-gold-600/20">
             <h2 className="text-2xl font-bold mb-6">{t.company.contact.form.send}</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <Input
+                label={t.company.contact.form.name}
+                error={errors.name?.message}
+                {...register('name')}
+              />
+              <Input
+                label={t.company.contact.form.email}
+                type="email"
+                error={errors.email?.message}
+                {...register('email')}
+              />
+              <PhoneInput
+                label={t.company.contact.form.phone}
+                error={errors.phone?.message}
+                {...register('phone')}
+              />
+              <Input
+                label={t.company.contact.form.subject}
+                error={errors.subject?.message}
+                {...register('subject')}
+              />
               <div>
-                <label className="block text-sm font-medium mb-2">{t.company.contact.form.name}</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2 bg-black border border-gold-600/30 rounded-lg text-white focus:outline-none focus:border-gold-600"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">{t.company.contact.form.email}</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2 bg-black border border-gold-600/30 rounded-lg text-white focus:outline-none focus:border-gold-600"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">{t.company.contact.form.phone}</label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 bg-black border border-gold-600/30 rounded-lg text-white focus:outline-none focus:border-gold-600"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">{t.company.contact.form.subject}</label>
-                <input
-                  type="text"
-                  name="subject"
-                  value={formData.subject}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2 bg-black border border-gold-600/30 rounded-lg text-white focus:outline-none focus:border-gold-600"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">{t.company.contact.form.message}</label>
+                <label className="block text-sm font-medium text-gold-600 mb-2">
+                  {t.company.contact.form.message}
+                </label>
                 <textarea
-                  name="message"
-                  value={formData.message}
-                  onChange={handleChange}
-                  required
                   rows={5}
-                  className="w-full px-4 py-2 bg-black border border-gold-600/30 rounded-lg text-white focus:outline-none focus:border-gold-600 resize-none"
+                  className={cn(
+                    'w-full px-4 py-2 bg-black-100 border rounded-lg',
+                    'text-white placeholder:text-gray-500',
+                    'focus:outline-none focus:ring-2 focus:ring-gold-600 focus:border-transparent',
+                    'transition-all duration-200 resize-none',
+                    errors.message ? 'border-red-500 focus:ring-red-500' : 'border-black-300'
+                  )}
+                  {...register('message')}
                 />
+                {errors.message && (
+                  <p className="mt-1 text-sm text-red-500">{errors.message.message}</p>
+                )}
               </div>
               <Button
                 type="submit"

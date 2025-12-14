@@ -5,13 +5,15 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Settings, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Settings, CheckCircle2, AlertCircle, LayoutDashboard } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/authStore';
 import { authApi } from '@/lib/api/auth';
 import { ScrollReveal } from '@/components/animations/ScrollReveal';
 import { Input } from '@/components/ui/Input';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { Button } from '@/components/ui/Button';
 import { useI18n } from '@/lib/i18n/context';
+import { optionalPhoneSchema } from '@/lib/validations/phone';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ProfilePage() {
@@ -25,7 +27,7 @@ export default function ProfilePage() {
   const profileSchema = z.object({
     name: z.string().min(2, t.account.name + ' must be at least 2 characters'),
     email: z.string().email(t.checkout.invalidEmail),
-    phone: z.string().optional(),
+    phone: optionalPhoneSchema,
   });
 
   type ProfileFormData = z.infer<typeof profileSchema>;
@@ -188,15 +190,14 @@ export default function ProfilePage() {
                 {...register('email')}
               />
 
-              <Input
+              <PhoneInput
                 label={t.account.phone}
-                type="tel"
                 error={errors.phone?.message}
                 {...register('phone')}
               />
             </div>
 
-            <div className="pt-4 border-t border-gold-600/10">
+            <div className="pt-4 border-t border-gold-600/10 flex flex-col sm:flex-row gap-4">
               <Button 
                 type="submit" 
                 variant="primary" 
@@ -206,6 +207,19 @@ export default function ProfilePage() {
               >
                 {t.account.saveChanges}
               </Button>
+              
+              {user?.role === 'admin' && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="lg"
+                  onClick={() => router.push('/admin/dashboard')}
+                  className="w-full md:w-auto flex items-center gap-2"
+                >
+                  <LayoutDashboard className="w-5 h-5" />
+                  {t.account.adminDashboard}
+                </Button>
+              )}
             </div>
           </form>
         </div>

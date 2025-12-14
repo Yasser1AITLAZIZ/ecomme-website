@@ -9,7 +9,9 @@ import { useAuthStore } from '@/lib/store/authStore';
 import { authApi } from '@/lib/api/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { useI18n } from '@/lib/i18n/context';
+import { phoneSchema } from '@/lib/validations/phone';
 
 export function RegisterForm() {
   const { t } = useI18n();
@@ -21,7 +23,7 @@ export function RegisterForm() {
   const registerSchema = z.object({
     name: z.string().min(2, t.auth.register.name + ' must be at least 2 characters'),
     email: z.string().email(t.checkout.invalidEmail),
-    phone: z.string().min(10, t.checkout.phone + ' is required'),
+    phone: phoneSchema,
     password: z.string().min(6, t.auth.register.password + ' must be at least 6 characters'),
     confirmPassword: z.string(),
   }).refine((data) => data.password === data.confirmPassword, {
@@ -100,9 +102,8 @@ export function RegisterForm() {
         {...register('email')}
       />
 
-      <Input
+      <PhoneInput
         label={t.checkout.phone}
-        type="tel"
         placeholder="+212 6XX XXX XXX"
         error={errors.phone?.message}
         {...register('phone')}
