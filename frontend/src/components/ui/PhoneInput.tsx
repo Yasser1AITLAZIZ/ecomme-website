@@ -56,9 +56,9 @@ export const PhoneInput = forwardRef<HTMLInputElement, CustomPhoneInputProps>(
             countrySelectProps={{
               className: cn(
                 'bg-transparent border-none outline-none',
-                'px-2 py-3',
-                'text-white'
+                'px-2 py-3'
               ),
+              'aria-label': 'Phone number country',
             }}
           />
         </div>
@@ -121,6 +121,33 @@ export const PhoneInput = forwardRef<HTMLInputElement, CustomPhoneInputProps>(
             opacity: 0;
             cursor: pointer;
             z-index: 1;
+            color: #000 !important;
+            pointer-events: auto !important;
+            display: block !important;
+          }
+          
+          /* Style native option elements to ensure visibility */
+          .phone-input-wrapper .PhoneInputCountrySelect option {
+            color: #000 !important;
+            background-color: #fff !important;
+            padding: 8px 12px !important;
+          }
+          
+          /* Ensure select element doesn't interfere with option visibility */
+          .phone-input-wrapper .PhoneInputCountrySelect:focus {
+            outline: none;
+          }
+          
+          /* Prevent focus errors by ensuring element is always accessible */
+          .phone-input-wrapper .PhoneInputCountry {
+            min-height: 48px;
+            display: flex !important;
+            align-items: center !important;
+          }
+          
+          /* Ensure country select is properly mounted before interaction */
+          .phone-input-wrapper .PhoneInputCountrySelect:not([disabled]) {
+            visibility: visible !important;
           }
           
           /* Ensure flags are visible in dropdown */
