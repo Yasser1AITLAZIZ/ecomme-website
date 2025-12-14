@@ -1,8 +1,9 @@
 """Admin user management routes."""
-from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
+from fastapi import APIRouter, Depends, Query, HTTPException, status, Request, Path
 from typing import Optional, List
 import httpx
-from app.api.v1.deps import get_db, validate_uuid_param
+from app.api.v1.deps import get_db
+from app.api.deps import validate_uuid
 from app.core.permissions import require_admin
 from app.schemas.admin import (
     AdminUserList,
@@ -279,7 +280,7 @@ async def create_user(
 
 @router.get("/{user_id}", response_model=AdminUserDetail)
 async def get_user(
-    user_id: str = Depends(validate_uuid_param),
+    user_id: str = Path(..., description="User ID"),
     db: Client = Depends(get_db),
     current_user: UserProfile = Depends(require_admin)
 ):
@@ -289,6 +290,12 @@ async def get_user(
     Returns:
         User details with orders
     """
+    # Validate UUID
+    if not validate_uuid(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid UUID format"
+        )
     try:
         # Get user profile
         profile_response = db.table("user_profiles").select("*").eq("id", user_id).execute()
@@ -298,15 +305,31 @@ async def get_user(
         
         profile = profile_response.data[0]
         
-        # Get email from auth.users (if accessible)
-        # Note: This might require admin API access
+        # Get email from Admin API
         email = None
         try:
-            auth_response = db.table("auth.users").select("email").eq("id", user_id).execute()
-            if auth_response.data:
-                email = auth_response.data[0].get("email")
-        except:
-            pass  # Email might not be accessible via regular query
+            admin_api_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{user_id}"
+            headers = {
+                "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+                "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+                "Content-Type": "application/json"
+            }
+            
+            async with httpx.AsyncClient() as client:
+                admin_response = await client.get(
+                    admin_api_url,
+                    headers=headers,
+                    timeout=10.0
+                )
+                
+                if admin_response.status_code == 200:
+                    auth_user = admin_response.json()
+                    email = auth_user.get("email")
+        except Exception as e:
+            # If Admin API fails, continue without email
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to fetch email from Admin API: {str(e)}")
         
         # Get user orders
         orders_response = db.table("orders").select("*").eq("user_id", user_id).order(
@@ -320,7 +343,7 @@ async def get_user(
             "phone": profile.get("phone"),
             "role": profile.get("role", "customer"),
             "created_at": profile["created_at"],
-            "updated_at": profile["updated_at"],
+            "updated_at": profile.get("updated_at", profile["created_at"]),
             "orders": orders_response.data or []
         }
     except NotFoundError:
@@ -334,7 +357,7 @@ async def get_user(
 
 @router.put("/{user_id}", response_model=AdminUserDetail)
 async def update_user(
-    user_id: str = Depends(validate_uuid_param),
+    user_id: str = Path(..., description="User ID"),
     user_update: AdminUserUpdate = None,
     db: Client = Depends(get_db),
     current_user: UserProfile = Depends(require_admin)
@@ -353,8 +376,48 @@ async def update_user(
         
         old_values = existing.data[0]
         
+        # Validate UUID
+        if not validate_uuid(user_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid UUID format"
+            )
+        
+        # Validate user_update is provided
+        if not user_update:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User update data is required"
+            )
+        
         # Update user
         update_data = user_update.model_dump(exclude_unset=True)
+        
+        # Get email from Admin API (before update)
+        email = None
+        try:
+            admin_api_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{user_id}"
+            headers = {
+                "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+                "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+                "Content-Type": "application/json"
+            }
+            
+            async with httpx.AsyncClient() as client:
+                admin_response = await client.get(
+                    admin_api_url,
+                    headers=headers,
+                    timeout=10.0
+                )
+                
+                if admin_response.status_code == 200:
+                    auth_user = admin_response.json()
+                    email = auth_user.get("email")
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to fetch email from Admin API: {str(e)}")
+        
         if update_data:
             from datetime import datetime
             update_data["updated_at"] = datetime.utcnow().isoformat()
@@ -373,15 +436,6 @@ async def update_user(
             
             updated = response.data[0] if response.data else old_values
             
-            # Get email
-            email = None
-            try:
-                auth_response = db.table("auth.users").select("email").eq("id", user_id).execute()
-                if auth_response.data:
-                    email = auth_response.data[0].get("email")
-            except:
-                pass
-            
             return {
                 "id": updated["id"],
                 "email": email,
@@ -393,14 +447,15 @@ async def update_user(
                 "orders": []
             }
         
+        # No update data provided, return current user
         return {
             "id": old_values["id"],
-            "email": None,
+            "email": email,
             "name": old_values.get("name"),
             "phone": old_values.get("phone"),
             "role": old_values.get("role", "customer"),
             "created_at": old_values["created_at"],
-            "updated_at": old_values["updated_at"],
+            "updated_at": old_values.get("updated_at", old_values["created_at"]),
             "orders": []
         }
     except NotFoundError:
@@ -414,7 +469,7 @@ async def update_user(
 
 @router.put("/{user_id}/role", response_model=AdminUserDetail)
 async def update_user_role(
-    user_id: str = Depends(validate_uuid_param),
+    user_id: str = Path(..., description="User ID"),
     role_update: AdminUserRoleUpdate = None,
     db: Client = Depends(get_db),
     current_user: UserProfile = Depends(require_admin)
@@ -425,6 +480,12 @@ async def update_user_role(
     Returns:
         Updated user details
     """
+    # Validate UUID
+    if not validate_uuid(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid UUID format"
+        )
     try:
         # Get existing user
         existing = db.table("user_profiles").select("*").eq("id", user_id).execute()
@@ -432,6 +493,13 @@ async def update_user_role(
             raise NotFoundError("User", user_id)
         
         old_values = existing.data[0]
+        
+        # Validate role_update is provided
+        if not role_update:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Role update data is required"
+            )
         
         # Validate role
         if role_update.role not in ["customer", "admin"]:
@@ -459,14 +527,30 @@ async def update_user_role(
         
         updated = response.data[0] if response.data else old_values
         
-        # Get email
+        # Get email from Admin API
         email = None
         try:
-            auth_response = db.table("auth.users").select("email").eq("id", user_id).execute()
-            if auth_response.data:
-                email = auth_response.data[0].get("email")
-        except:
-            pass
+            admin_api_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{user_id}"
+            headers = {
+                "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+                "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+                "Content-Type": "application/json"
+            }
+            
+            async with httpx.AsyncClient() as client:
+                admin_response = await client.get(
+                    admin_api_url,
+                    headers=headers,
+                    timeout=10.0
+                )
+                
+                if admin_response.status_code == 200:
+                    auth_user = admin_response.json()
+                    email = auth_user.get("email")
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to fetch email from Admin API: {str(e)}")
         
         return {
             "id": updated["id"],
@@ -487,16 +571,22 @@ async def update_user_role(
         )
 
 
-@router.delete("/{user_id}", status_code=204)
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
-    user_id: str = Depends(validate_uuid_param),
+    user_id: str = Path(..., description="User ID"),
     db: Client = Depends(get_db),
     current_user: UserProfile = Depends(require_admin)
 ):
     """
     Delete user (admin only).
-    Note: This is a soft delete - user profile is marked as deleted.
+    Deletes user from both auth.users and user_profiles.
     """
+    # Validate UUID
+    if not validate_uuid(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid UUID format"
+        )
     try:
         # Get existing user
         existing = db.table("user_profiles").select("*").eq("id", user_id).execute()
@@ -510,11 +600,7 @@ async def delete_user(
                 detail="Cannot delete your own account"
             )
         
-        # Soft delete - update role to indicate deletion or use a deleted_at field
-        # For now, we'll just log the action
-        # In production, you might want to add a deleted_at field to user_profiles
-        
-        # Log audit
+        # Log audit before deletion
         AuditService.log_action(
             user_id=current_user.id,
             action="user.deleted",
@@ -523,8 +609,35 @@ async def delete_user(
             old_values=existing.data[0]
         )
         
-        # Note: Actual deletion would require Supabase Admin API
-        # For now, we'll just return success
+        # Delete from auth.users using Admin API
+        try:
+            admin_api_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{user_id}"
+            headers = {
+                "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+                "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+                "Content-Type": "application/json"
+            }
+            
+            async with httpx.AsyncClient() as client:
+                delete_response = await client.delete(
+                    admin_api_url,
+                    headers=headers,
+                    timeout=10.0
+                )
+                
+                if delete_response.status_code not in [200, 204]:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Failed to delete user from auth: {delete_response.status_code}")
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to delete user from auth.users: {str(e)}")
+            # Continue to delete profile even if auth deletion fails
+        
+        # Delete user profile
+        db.table("user_profiles").delete().eq("id", user_id).execute()
+        
         return None
     except NotFoundError:
         raise
@@ -566,7 +679,7 @@ async def get_users_count(
 
 @router.get("/{user_id}/orders")
 async def get_user_orders(
-    user_id: str = Depends(validate_uuid_param),
+    user_id: str = Path(..., description="User ID"),
     db: Client = Depends(get_db),
     current_user: UserProfile = Depends(require_admin)
 ):
@@ -576,6 +689,12 @@ async def get_user_orders(
     Returns:
         List of user's orders
     """
+    # Validate UUID
+    if not validate_uuid(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid UUID format"
+        )
     try:
         response = db.table("orders").select("*").eq("user_id", user_id).order(
             "created_at", desc=True

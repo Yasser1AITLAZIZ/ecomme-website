@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, Search, UserPlus } from 'lucide-react';
+import { Eye, Search, UserPlus, Trash2, Shield, User } from 'lucide-react';
 import { adminApi } from '@/lib/api/admin';
 import { DataTable } from '@/components/admin/DataTable';
 import type { AdminUser } from '@/lib/api/admin';
@@ -25,6 +25,9 @@ export default function AdminUsersPage() {
     phone: '',
     role: 'customer',
   });
+  const [updatingRole, setUpdatingRole] = useState<string | null>(null);
+  const [deletingUser, setDeletingUser] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
     loadUsers();
@@ -78,6 +81,50 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleRoleChange = async (userId: string, newRole: 'customer' | 'admin') => {
+    try {
+      setUpdatingRole(userId);
+      await adminApi.updateUserRole(userId, newRole);
+      showToast({
+        message: `User role updated to ${newRole}`,
+        type: 'success',
+      });
+      loadUsers();
+    } catch (error: any) {
+      showToast({
+        message: 'Failed to update role: ' + (error.response?.data?.detail || error.message),
+        type: 'error',
+      });
+    } finally {
+      setUpdatingRole(null);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (deleteConfirm !== userId) {
+      setDeleteConfirm(userId);
+      return;
+    }
+
+    try {
+      setDeletingUser(userId);
+      await adminApi.deleteUser(userId);
+      showToast({
+        message: 'User deleted successfully',
+        type: 'success',
+      });
+      setDeleteConfirm(null);
+      loadUsers();
+    } catch (error: any) {
+      showToast({
+        message: 'Failed to delete user: ' + (error.response?.data?.detail || error.message),
+        type: 'error',
+      });
+    } finally {
+      setDeletingUser(null);
+    }
+  };
+
   const columns = [
     {
       key: 'name',
@@ -93,11 +140,25 @@ export default function AdminUsersPage() {
       key: 'role',
       header: 'Role',
       render: (user: AdminUser) => (
-        <span className={`px-2 py-1 rounded text-xs ${
-          user.role === 'admin' ? 'bg-gold-600/20 text-gold-600' : 'bg-gray-600/20 text-gray-400'
-        }`}>
-          {user.role}
-        </span>
+        <div className="flex items-center gap-2">
+          <select
+            value={user.role}
+            onChange={(e) => handleRoleChange(user.id, e.target.value as 'customer' | 'admin')}
+            disabled={updatingRole === user.id}
+            onClick={(e) => e.stopPropagation()}
+            className={`px-2 py-1 rounded text-xs border ${
+              user.role === 'admin' 
+                ? 'bg-gold-600/20 text-gold-600 border-gold-600/30' 
+                : 'bg-gray-600/20 text-gray-400 border-gray-600/30'
+            } focus:outline-none focus:ring-1 focus:ring-gold-600/50 disabled:opacity-50`}
+          >
+            <option value="customer">Customer</option>
+            <option value="admin">Admin</option>
+          </select>
+          {updatingRole === user.id && (
+            <span className="text-xs text-gray-500">Updating...</span>
+          )}
+        </div>
       ),
     },
     {
@@ -118,15 +179,37 @@ export default function AdminUsersPage() {
       key: 'actions',
       header: 'Actions',
       render: (user: AdminUser) => (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            router.push(`/admin/users/${user.id}`);
-          }}
-          className="p-2 rounded-lg bg-gold-600/20 hover:bg-gold-600/30 text-gold-600 transition-colors"
-        >
-          <Eye className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/admin/users/${user.id}`);
+            }}
+            className="p-2 rounded-lg bg-gold-600/20 hover:bg-gold-600/30 text-gold-600 transition-colors"
+            title="View Details"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteUser(user.id);
+            }}
+            disabled={deletingUser === user.id}
+            className={`p-2 rounded-lg transition-colors ${
+              deleteConfirm === user.id
+                ? 'bg-red-600/30 hover:bg-red-600/40 text-red-400'
+                : 'bg-red-600/20 hover:bg-red-600/30 text-red-400'
+            } disabled:opacity-50`}
+            title={deleteConfirm === user.id ? 'Click again to confirm' : 'Delete User'}
+          >
+            {deletingUser === user.id ? (
+              <span className="text-xs">...</span>
+            ) : (
+              <Trash2 className="w-4 h-4" />
+            )}
+          </button>
+        </div>
       ),
     },
   ];

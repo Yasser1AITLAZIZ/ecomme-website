@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, Request, HTTPException, status
 from app.api.v1.deps import get_db, get_language
 from app.schemas.admin import ContactLeadCreate, ContactLead
-from app.core.validators import sanitize_dict
+from app.core.security import sanitize_dict
 from supabase import Client
 from datetime import datetime
 
