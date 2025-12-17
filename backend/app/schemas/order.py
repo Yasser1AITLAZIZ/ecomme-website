@@ -33,6 +33,8 @@ class OrderCreate(BaseModel):
     payment_method: str
     coupon_code: Optional[str] = None
     notes: Optional[str] = None
+    delivery_type: str = "delivery"  # 'pickup' or 'delivery'
+    items: Optional[List[OrderItemBase]] = None  # Optional items from frontend, if not provided, use cart from DB
 
 
 class OrderUpdate(BaseModel):
@@ -65,6 +67,7 @@ class Order(BaseModel):
     payment_status: str
     payment_intent_id: Optional[str] = None
     shipping_method_id: Optional[str] = None
+    delivery_type: Optional[str] = None
     shipping_address: Dict[str, Any]
     billing_address: Optional[Dict[str, Any]] = None
     notes: Optional[str] = None
@@ -90,3 +93,13 @@ class OrderStatusHistory(BaseModel):
     class Config:
         from_attributes = True
 
+
+class RecentOrder(BaseModel):
+    """Recent order schema for public ticker display."""
+    id: str
+    created_at: datetime
+    product_name: str
+    quantity: int
+    
+    class Config:
+        from_attributes = True

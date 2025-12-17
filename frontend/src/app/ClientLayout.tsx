@@ -1,86 +1,101 @@
 'use client';
 
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { usePathname } from 'next/navigation';
 import { I18nProvider } from '@/lib/i18n/context';
+import { QueryProvider } from '@/lib/providers/QueryProvider';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { CartSidebar } from '@/components/layout/CartSidebar';
-import { SplashScreen } from '@/components/animations/SplashScreen';
 import { ScrollProgress } from '@/components/ui/ScrollProgress';
 import { ToastProvider } from '@/components/ui/Toast';
 import { ScrollToTop } from '@/components/ui/ScrollToTop';
 import { ScrollingTickerBar } from '@/components/ui/ScrollingTickerBar';
 import { isMobile, prefersReducedMotion } from '@/lib/utils/device';
+import { useCartStore } from '@/lib/store/cartStore';
+import { useAuthStore } from '@/lib/store/authStore';
 
 // Lazy load heavy animation components
 const DynamicBackground = lazy(() => import('@/components/animations/DynamicBackground').then(m => ({ default: m.DynamicBackground })));
-const FloatingElements = lazy(() => import('@/components/animations/FloatingElements').then(m => ({ default: m.FloatingElements })));
 const Particles = lazy(() => import('@/components/animations/Particles').then(m => ({ default: m.Particles })));
 const AlternatingBackground = lazy(() => import('@/components/animations/AlternatingBackground').then(m => ({ default: m.AlternatingBackground })));
 const CursorTrail = lazy(() => import('@/components/animations/CursorTrail').then(m => ({ default: m.CursorTrail })));
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-  const [showContent, setShowContent] = useState(false);
+  const pathname = usePathname();
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const loadCartFromBackend = useCartStore((state) => state.loadCartFromBackend);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  // Check if current route is an admin route
+  const isAdminRoute = pathname?.startsWith('/admin') ?? false;
 
   useEffect(() => {
     setIsMobileDevice(isMobile());
     setReducedMotion(prefersReducedMotion());
   }, []);
 
-  // Memoize the onComplete callback to prevent unnecessary re-renders
-  const handleSplashComplete = useCallback(() => {
-    setShowContent(true);
-  }, []);
-
-  // Fallback timeout: if splash screen doesn't complete in 5 seconds, show content anyway
+  // Load cart from backend on app initialization
   useEffect(() => {
-    const fallbackTimer = setTimeout(() => {
-      if (!showContent) {
-        console.warn('[ClientLayout] Splash screen timeout - showing content anyway');
-        setShowContent(true);
-      }
-    }, 5000);
+    // Only load cart for non-admin routes
+    if (isAdminRoute) return;
+    
+    // Small delay to ensure stores are hydrated
+    const timer = setTimeout(() => {
+      loadCartFromBackend().catch((error) => {
+        console.error('Failed to load cart on app initialization:', error);
+      });
+    }, 100);
 
-    return () => clearTimeout(fallbackTimer);
-  }, [showContent]);
+    return () => clearTimeout(timer);
+  }, [loadCartFromBackend, isAdminRoute]);
 
   const shouldLoadAnimations = !isMobileDevice && !reducedMotion;
 
-  return (
-    <>
-      <SplashScreen onComplete={handleSplashComplete} />
-      {showContent && (
+  // For admin routes, skip splash screen, animations, and public layout structure
+  if (isAdminRoute) {
+    return (
+      <QueryProvider>
         <I18nProvider>
           <ToastProvider>
-            {/* Only load cursor trail on desktop */}
-            {shouldLoadAnimations && (
-              <Suspense fallback={null}>
-                <CursorTrail />
-              </Suspense>
-            )}
-            <ScrollProgress />
-            <ScrollToTop />
-            {/* Lazy load heavy background animations */}
-            {shouldLoadAnimations && (
-              <Suspense fallback={null}>
-                <DynamicBackground />
-                <Particles />
-                <AlternatingBackground />
-                <FloatingElements />
-              </Suspense>
-            )}
-            <ScrollingTickerBar />
-            <div className="min-h-screen flex flex-col bg-obsidian-950 text-obsidian-50 relative">
-              <Header />
-              <main className="flex-1 relative z-10">{children}</main>
-              <Footer />
-              <CartSidebar />
-            </div>
+            {children}
           </ToastProvider>
         </I18nProvider>
-      )}
-    </>
+      </QueryProvider>
+    );
+  }
+
+  // Public site layout with animations, header, footer
+  return (
+    <QueryProvider>
+      <I18nProvider>
+        <ToastProvider>
+          {/* Only load cursor trail on desktop */}
+          {shouldLoadAnimations && (
+            <Suspense fallback={null}>
+              <CursorTrail />
+            </Suspense>
+          )}
+          <ScrollProgress />
+          <ScrollToTop />
+          {/* Lazy load heavy background animations */}
+          {shouldLoadAnimations && (
+            <Suspense fallback={null}>
+              <DynamicBackground />
+              <Particles />
+              <AlternatingBackground />
+            </Suspense>
+          )}
+          <ScrollingTickerBar />
+          <div className="min-h-screen flex flex-col bg-obsidian-950 text-obsidian-50 relative">
+            <Header />
+            <main className="flex-1 relative z-10">{children}</main>
+            <Footer />
+            <CartSidebar />
+          </div>
+        </ToastProvider>
+      </I18nProvider>
+    </QueryProvider>
   );
 }

@@ -29,6 +29,7 @@ export function AnimatedGradientText({
         repeat: Infinity,
         ease: 'linear',
       }}
+      suppressHydrationWarning
     >
       {children}
     </motion.span>

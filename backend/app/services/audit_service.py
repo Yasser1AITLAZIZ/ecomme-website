@@ -1,10 +1,23 @@
 """Audit logging service."""
 from typing import Optional, Dict, Any
+from decimal import Decimal
 from app.database import get_supabase_client
 
 
 class AuditService:
     """Service for audit logging."""
+    
+    @staticmethod
+    def _convert_decimals_to_strings(obj):
+        """Recursively convert Decimal objects to strings for JSON serialization."""
+        if isinstance(obj, Decimal):
+            return str(obj)
+        elif isinstance(obj, dict):
+            return {k: AuditService._convert_decimals_to_strings(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [AuditService._convert_decimals_to_strings(item) for item in obj]
+        else:
+            return obj
     
     @staticmethod
     def log_action(
@@ -32,13 +45,17 @@ class AuditService:
         """
         db = get_supabase_client()
         
+        # Convert Decimal objects to strings for JSON serialization
+        old_values_serialized = AuditService._convert_decimals_to_strings(old_values) if old_values else {}
+        new_values_serialized = AuditService._convert_decimals_to_strings(new_values) if new_values else {}
+        
         db.table("audit_logs").insert({
             "user_id": user_id,
             "action": action,
             "resource_type": resource_type,
             "resource_id": resource_id,
-            "old_values": old_values or {},
-            "new_values": new_values or {},
+            "old_values": old_values_serialized,
+            "new_values": new_values_serialized,
             "ip_address": ip_address,
             "user_agent": user_agent
         }).execute()

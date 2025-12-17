@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -15,6 +15,7 @@ import Link from 'next/link';
 export function LoginForm() {
   const { t } = useI18n();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const login = useAuthStore((state) => state.login);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,8 +43,11 @@ export function LoginForm() {
       if (!response.token) {
         throw new Error('Login failed: No token received');
       }
-      login(response.user, response.token);
-      router.push('/account');
+      await login(response.user, response.token);
+      
+      // Get redirect parameter from URL, default to /account
+      const redirect = searchParams.get('redirect') || '/account';
+      router.push(redirect);
     } catch (err) {
       // Backend now returns translated error messages based on Accept-Language header
       // Use the error message directly from the backend

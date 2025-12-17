@@ -7,6 +7,7 @@ import { Product } from '@/types';
 import { useCartStore } from '@/lib/store/cartStore';
 import { Button } from '@/components/ui/Button';
 import { SafeImage } from '@/components/ui/SafeImage';
+import { useI18n } from '@/lib/i18n/context';
 
 interface QuickViewProps {
   product: Product;
@@ -15,6 +16,7 @@ interface QuickViewProps {
 }
 
 export function QuickView({ product, isOpen, onClose }: QuickViewProps) {
+  const { t } = useI18n();
   const addToCart = useCartStore((state) => state.addItem);
 
   const handleAddToCart = () => {
@@ -72,7 +74,7 @@ export function QuickView({ product, isOpen, onClose }: QuickViewProps) {
                       </span>
                       {product.featured && (
                         <span className="px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full text-sm font-semibold">
-                          Featured
+                          {t.products.featuredBadge}
                         </span>
                       )}
                     </div>

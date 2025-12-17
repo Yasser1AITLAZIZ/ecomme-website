@@ -53,7 +53,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
             phone: parsed.nationalNumber,
           };
         }
-      } catch {
+      } catch (e) {
         // If parsing fails, try to extract country code manually
         const dialCodeMatch = val.match(/^\+(\d{1,4})/);
         if (dialCodeMatch) {
@@ -66,10 +66,19 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
         }
       }
 
-      // Fallback to default
+      // Fallback: try to extract phone number by matching known dial codes
+      for (const country of countries) {
+        if (val.startsWith(country.dialCode)) {
+          const phone = val.slice(country.dialCode.length).trim();
+          return { country, phone };
+        }
+      }
+      
+      // Last resort: use default country and try to extract any digits
+      const phone = val.replace(/^\+?\d{1,4}\s?/, '');
       return {
         country: getCountryByCode(defaultCountry) || countries[0],
-        phone: val.replace(/^\+?\d{1,4}\s?/, ''),
+        phone,
       };
     }, [defaultCountry]);
 
@@ -82,6 +91,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
 
     const dropdownRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const isInternalChangeRef = useRef(false);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -107,10 +117,16 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
 
     // Update phone number when value prop changes externally
     useEffect(() => {
+      // Skip if this change was initiated internally to prevent reset loop
+      if (isInternalChangeRef.current) {
+        isInternalChangeRef.current = false;
+        return;
+      }
+      
       const { country, phone } = initializeFromValue(value);
       setSelectedCountry(country);
       setPhoneNumber(phone);
-    }, [value, initializeFromValue]);
+    }, [value, initializeFromValue, phoneNumber]);
 
     const handleCountrySelect = useCallback((country: Country) => {
       setSelectedCountry(country);
@@ -119,6 +135,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
       
       // Always update the value when country changes
       // If phone number exists, combine them; otherwise just set empty
+      isInternalChangeRef.current = true;
       if (phoneNumber) {
         const fullNumber = country.dialCode + phoneNumber;
         onChange?.(fullNumber);
@@ -142,6 +159,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
             const phone = inputValue.slice(dialCodeDigits.length);
             setSelectedCountry(country);
             setPhoneNumber(phone);
+            isInternalChangeRef.current = true;
             if (phone) {
               onChange?.(country.dialCode + phone);
             } else {
@@ -157,12 +175,14 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
       // Combine country code and phone number, only call onChange if there's a value
       if (inputValue) {
         const fullNumber = selectedCountry.dialCode + inputValue;
+        isInternalChangeRef.current = true;
         onChange?.(fullNumber);
       } else {
         // If phone number is empty, still call onChange with empty string
+        isInternalChangeRef.current = true;
         onChange?.('');
       }
-    }, [selectedCountry, onChange]);
+    }, [selectedCountry, onChange, phoneNumber]);
 
     // Filter countries based on search query (search in translated names too)
     const filteredCountries = useMemo(() => {

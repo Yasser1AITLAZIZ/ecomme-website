@@ -14,6 +14,7 @@ import {
   Shield,
   LogOut,
   MessageSquare,
+  Truck,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useRouter } from 'next/navigation';
@@ -26,6 +27,7 @@ const menuItems = [
   { icon: MessageSquare, label: 'Leads', href: '/admin/leads' },
   { icon: FolderTree, label: 'Categories', href: '/admin/categories' },
   { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
+  { icon: Truck, label: 'Delivery Fees', href: '/admin/delivery-fees' },
   { icon: Settings, label: 'Settings', href: '/admin/settings' },
   { icon: FileText, label: 'Audit Logs', href: '/admin/audit' },
   { icon: Shield, label: 'Security', href: '/admin/security' },

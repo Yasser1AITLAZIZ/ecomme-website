@@ -1,13 +1,18 @@
 'use client';
 
-import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
+import type { Product } from '@/types';
+import { useI18n } from '@/lib/i18n/context';
 
 interface FloatingPhoneProps {
   className?: string;
+  products?: Product[];
 }
 
-export function FloatingPhone({ className = '' }: FloatingPhoneProps) {
+export function FloatingPhone({ className = '', products = [] }: FloatingPhoneProps) {
+  const { t } = useI18n();
+  const [currentProductIndex, setCurrentProductIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -38,6 +43,48 @@ export function FloatingPhone({ className = '' }: FloatingPhoneProps) {
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [mouseX, mouseY]);
+
+  // Filter to only show smartphones (iphone or android), exclude accessories
+  const smartphoneProducts = products.filter(
+    product => product.category === 'iphone' || product.category === 'android'
+  );
+
+  // Rotate through products every 5 seconds
+  useEffect(() => {
+    if (smartphoneProducts.length === 0) return;
+    
+    const interval = setInterval(() => {
+      setCurrentProductIndex((prev) => (prev + 1) % smartphoneProducts.length);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [smartphoneProducts.length]);
+
+  const currentProduct = smartphoneProducts[currentProductIndex] || null;
+  
+  // Format price
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('fr-FR').format(price);
+  };
+
+  // Extract color/variant from product name or specifications
+  const getProductVariant = (product: Product | null): string => {
+    if (!product) return '';
+    
+    // Try to get color from specifications
+    if (product.specifications?.color) {
+      return product.specifications.color;
+    }
+    
+    // Try to extract from name (e.g., "iPhone 15 Pro Max Titane Naturel")
+    const colorMatch = product.name.match(/(Titane|Blue|Black|White|Gold|Silver|Natural|Naturel|Pro|Max)/i);
+    if (colorMatch) {
+      return colorMatch[0];
+    }
+    
+    // Fallback to brand or category
+    return product.brand || product.category || '';
+  };
 
   return (
     <div
@@ -218,31 +265,63 @@ export function FloatingPhone({ className = '' }: FloatingPhoneProps) {
                     </div>
                   </motion.div>
 
-                  {/* Animated Text */}
-                  <motion.div
-                    className="text-center space-y-2"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                  >
-                    <motion.h3
-                      className="text-2xl font-bold bg-gradient-to-r from-gold-400 via-gold-500 to-gold-600 bg-clip-text text-transparent"
-                      animate={{
-                        backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-                      }}
-                      transition={{
-                        duration: 3,
-                        repeat: Infinity,
-                        ease: 'linear',
-                      }}
-                      style={{
-                        backgroundSize: '200% 200%',
-                      }}
-                    >
-                      iPhone 15 Pro Max
-                    </motion.h3>
-                    <p className="text-gold-600/60 text-sm font-medium">Titane Naturel</p>
-                  </motion.div>
+                  {/* Animated Text - Dynamic Product Info */}
+                  <AnimatePresence mode="wait">
+                    {currentProduct ? (
+                      <motion.div
+                        key={currentProduct.id}
+                        className="text-center space-y-2"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.5 }}
+                      >
+                        <motion.h3
+                          className="text-2xl font-bold bg-gradient-to-r from-gold-400 via-gold-500 to-gold-600 bg-clip-text text-transparent"
+                          animate={{
+                            backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                          }}
+                          transition={{
+                            duration: 3,
+                            repeat: Infinity,
+                            ease: 'linear',
+                          }}
+                          style={{
+                            backgroundSize: '200% 200%',
+                          }}
+                        >
+                          {currentProduct.name}
+                        </motion.h3>
+                        <motion.p 
+                          className="text-gold-600/60 text-sm font-medium"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.2 }}
+                        >
+                          {getProductVariant(currentProduct)}
+                        </motion.p>
+                        <motion.div
+                          className="mt-3"
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 0.3 }}
+                        >
+                          <p className="text-gray-400 text-xs mb-1">{t.home.showcase.startingFrom || 'À partir de'}</p>
+                          <p className="text-gold-600 font-bold text-lg">
+                            {formatPrice(currentProduct.price)} MAD
+                          </p>
+                        </motion.div>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        className="text-center space-y-2"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      >
+                        <p className="text-gold-600/60 text-sm">{t.products.noProducts || 'No products available'}</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   {/* Floating Gold Particles */}
                   {[...Array(6)].map((_, i) => (

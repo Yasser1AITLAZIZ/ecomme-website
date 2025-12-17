@@ -5,95 +5,129 @@ import { motion } from 'framer-motion';
 import { ShoppingBag, Truck } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/context';
 import { cn } from '@/lib/utils/cn';
+import { ordersApi, type RecentOrder } from '@/lib/api/orders';
+import { deliveryFeesApi } from '@/lib/api/deliveryFees';
+import { formatTimeAgo } from '@/lib/utils/date';
 
 interface OrderNotification {
-  id: number;
+  id: string;
   product: string;
   quantity: number;
   timeAgo: string;
 }
 
-// Sample order notifications
-const orderTemplates = [
-  { product: 'iPhone 15 Pro', quantity: 2 },
-  { product: 'iPhone 15', quantity: 1 },
-  { product: 'iPhone 14 Pro Max', quantity: 3 },
-  { product: 'Samsung Galaxy S24', quantity: 1 },
-  { product: 'iPhone 15 Pro Max', quantity: 2 },
-  { product: 'AirPods Pro', quantity: 4 },
-  { product: 'iPhone 13', quantity: 1 },
-  { product: 'iPad Pro', quantity: 1 },
-];
-
-const timeOptions = [
-  'just now',
-  '1 minute ago',
-  '2 minutes ago',
-  '3 minutes ago',
-  '4 minutes ago',
-  '5 minutes ago',
-  '6 minutes ago',
-  '7 minutes ago',
-  '8 minutes ago',
-  '9 minutes ago',
-  '10 minutes ago',
-];
-
 export function ScrollingTickerBar() {
   const [currentOrder, setCurrentOrder] = useState<OrderNotification | null>(null);
+  const [orders, setOrders] = useState<RecentOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const [defaultFee, setDefaultFee] = useState<number | null>(null);
   const { t, isRTL } = useI18n();
 
+  // Set mounted state after client-side hydration
   useEffect(() => {
-    // Generate initial order
-    const generateOrder = (): OrderNotification => {
-      const template = orderTemplates[Math.floor(Math.random() * orderTemplates.length)];
-      const timeAgo = timeOptions[Math.floor(Math.random() * timeOptions.length)];
-      
-      return {
-        id: Date.now(),
-        product: template.product,
-        quantity: template.quantity,
-        timeAgo,
-      };
+    setMounted(true);
+  }, []);
+
+  // Fetch recent orders and delivery fee on mount
+  useEffect(() => {
+    if (!mounted) return;
+    
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch delivery fee
+        try {
+          const feeData = await deliveryFeesApi.getDefaultFee();
+          setDefaultFee(feeData.default_display_fee || 10.0);
+        } catch (error) {
+          console.error('Failed to fetch delivery fee:', error);
+          setDefaultFee(10.0); // Fallback
+        }
+        
+        // Fetch recent orders
+        const recentOrders = await ordersApi.getRecent();
+        setOrders(recentOrders);
+        
+        // If we have orders, set the first one
+        if (recentOrders.length > 0) {
+          const firstOrder = recentOrders[0];
+          setCurrentOrder({
+            id: firstOrder.id,
+            product: firstOrder.product_name,
+            quantity: firstOrder.quantity,
+            timeAgo: formatTimeAgo(firstOrder.created_at),
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+        // On error, don't set currentOrder so only delivery message shows
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setCurrentOrder(generateOrder());
+    fetchData();
+  }, [mounted]);
 
-    // Update order every 8-15 seconds
+  // Rotate through orders if we have them
+  useEffect(() => {
+    if (orders.length === 0) return;
+
+    let currentIndex = 0;
+    
     const orderInterval = setInterval(() => {
-      setCurrentOrder(generateOrder());
+      currentIndex = (currentIndex + 1) % orders.length;
+      const order = orders[currentIndex];
+      setCurrentOrder({
+        id: order.id,
+        product: order.product_name,
+        quantity: order.quantity,
+        timeAgo: formatTimeAgo(order.created_at),
+      });
     }, 8000 + Math.random() * 7000);
 
     return () => {
       clearInterval(orderInterval);
     };
-  }, []);
+  }, [orders]);
 
-  if (!currentOrder) return null;
+  // Don't render on server or if still loading
+  if (!mounted || loading || defaultFee === null) return null;
 
-  const productText = currentOrder.quantity === 1 
-    ? currentOrder.product 
-    : `${currentOrder.quantity} ${currentOrder.product}s`;
-
-  // Get translations
-  const orderText = t.home.tickerBar?.orderText || '{product} ordered {timeAgo}';
-  const deliveryText = t.home.deliveryBar?.message || 'We deliver everywhere in Morocco, just by paying 150 dirhams MAD';
+  // Build delivery message with dynamic fee
+  const deliveryText = `Livraison partout au Maroc à partir de ${defaultFee.toFixed(2)} MAD • Délai maximum 48h`;
 
   // Create messages array
-  const messages = [
-    {
+  const messages = [];
+  
+  // Only add order message if we have a current order
+  if (currentOrder) {
+    const productText = currentOrder.quantity === 1 
+      ? currentOrder.product 
+      : `${currentOrder.quantity} ${currentOrder.product}s`;
+    
+    const orderText = t.home.tickerBar?.orderText || '{product} ordered {timeAgo}';
+    
+    messages.push({
       type: 'order' as const,
       icon: ShoppingBag,
       text: orderText
         .replace('{product}', `<span class="text-gold-400 font-semibold">${productText}</span>`)
         .replace('{timeAgo}', `<span class="text-gold-300">${currentOrder.timeAgo}</span>`),
-    },
-    {
-      type: 'delivery' as const,
-      icon: Truck,
-      text: `<span class="text-gold-400 font-semibold">${deliveryText}</span>`,
-    },
-  ];
+    });
+  }
+  
+  // Always add delivery message
+  messages.push({
+    type: 'delivery' as const,
+    icon: Truck,
+    text: `<span class="text-gold-400 font-semibold">${deliveryText}</span>`,
+  });
+
+  // Don't render if no messages (shouldn't happen, but safety check)
+  if (messages.length === 0) return null;
 
   // Duplicate messages multiple times for seamless scrolling
   const scrollingMessages = [...messages, ...messages, ...messages, ...messages];
@@ -113,7 +147,7 @@ export function ScrollingTickerBar() {
       <div className="relative h-[52px] flex items-center overflow-hidden">
         {/* Continuous horizontal scrolling ticker - scrolls right to left */}
         <motion.div
-          key={`ticker-${currentOrder.id}`}
+          key={`ticker-${currentOrder?.id || 'delivery'}`}
           className="flex items-center gap-8 whitespace-nowrap"
           animate={{
             x: isRTL ? ['0%', '-50%'] : ['-50%', '0%'],
@@ -126,7 +160,7 @@ export function ScrollingTickerBar() {
         >
           {scrollingMessages.map((message, index) => (
             <div
-              key={`${message.type}-${index}-${currentOrder.id}`}
+              key={`${message.type}-${index}-${currentOrder?.id || 'delivery'}`}
               className={cn(
                 'flex items-center gap-3 flex-shrink-0',
                 isRTL && 'flex-row-reverse'

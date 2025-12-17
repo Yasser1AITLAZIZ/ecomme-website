@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.exceptions import BaseAPIException
 from app.core.logging import get_logger
+from datetime import datetime
 
 logger = get_logger(__name__)
 

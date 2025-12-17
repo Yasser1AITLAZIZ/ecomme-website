@@ -5,7 +5,7 @@ import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { cn } from '@/lib/utils/cn';
 
 type MagneticButtonProps = Omit<
-  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  React.HTMLAttributes<HTMLDivElement>,
   'onDrag' | 'onDragStart' | 'onDragEnd' | 'onAnimationStart' | 'onAnimationEnd'
 > & {
   children: React.ReactNode;
@@ -19,7 +19,7 @@ export function MagneticButton({
   strength = 0.3,
   ...props
 }: MagneticButtonProps) {
-  const ref = useRef<HTMLButtonElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
 
   const x = useMotionValue(0);
@@ -32,7 +32,7 @@ export function MagneticButton({
   const rotateX = useTransform(ySpring, [-0.5, 0.5], ['7.5deg', '-7.5deg']);
   const rotateY = useTransform(xSpring, [-0.5, 0.5], ['-7.5deg', '7.5deg']);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!ref.current) return;
 
     const rect = ref.current.getBoundingClientRect();
@@ -53,7 +53,7 @@ export function MagneticButton({
   };
 
   return (
-    <motion.button
+    <motion.div
       ref={ref}
       className={cn('relative', className)}
       onMouseMove={handleMouseMove}
@@ -83,7 +83,7 @@ export function MagneticButton({
           exit={{ opacity: 0 }}
         />
       )}
-    </motion.button>
+    </motion.div>
   );
 }
 

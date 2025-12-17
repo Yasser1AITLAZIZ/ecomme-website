@@ -37,6 +37,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || isLoading}
         whileHover={{ scale: disabled || isLoading ? 1 : 1.02 }}
         whileTap={{ scale: disabled || isLoading ? 1 : 0.98 }}
+        initial={false}
+        suppressHydrationWarning
         {...props}
       >
         {isLoading ? (

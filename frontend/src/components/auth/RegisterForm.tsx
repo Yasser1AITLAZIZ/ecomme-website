@@ -54,7 +54,7 @@ export function RegisterForm() {
       // If token is provided, user is logged in (shouldn't happen with email verification)
       // Otherwise, show verification message
       if (response.token) {
-        login(response.user, response.token);
+        await login(response.user, response.token);
         router.push('/account');
       } else {
         // Email verification required - backend returns translated message

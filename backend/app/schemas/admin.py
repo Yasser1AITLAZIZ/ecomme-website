@@ -1,6 +1,6 @@
 """Admin-specific schemas."""
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 from datetime import datetime
 from decimal import Decimal
 
@@ -331,3 +331,21 @@ class ContactLeadConvert(BaseModel):
     """Contact lead convert to user schema."""
     password: str
     role: str = "customer"
+
+
+# Notification Schemas
+
+class Notification(BaseModel):
+    """Notification schema."""
+    id: str
+    type: Literal['order', 'user', 'product']
+    title: str
+    message: str
+    created_at: datetime
+    link: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
