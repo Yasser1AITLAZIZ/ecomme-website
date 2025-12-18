@@ -23,6 +23,10 @@ export default function AdminProductEditPage() {
     category: 'iphone',
     brand: '',
     featured: false,
+    isPromoActive: false,
+    promoPrice: undefined,
+    promoStartDate: undefined,
+    promoEndDate: undefined,
   });
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -187,9 +191,27 @@ export default function AdminProductEditPage() {
       const sku = generateSKU(product.name || 'PROD');
       const slug = generateSlug(product.name || 'product');
       
+      // Validate promotion data
+      if (product.isPromoActive) {
+        if (product.promoPrice === undefined || product.promoPrice >= product.price!) {
+          alert('Le prix promotionnel doit être inférieur au prix régulier');
+          setSaving(false);
+          return;
+        }
+        if (product.promoStartDate && product.promoEndDate) {
+          const startDate = new Date(product.promoStartDate);
+          const endDate = new Date(product.promoEndDate);
+          if (endDate <= startDate) {
+            alert('La date de fin doit être après la date de début');
+            setSaving(false);
+            return;
+          }
+        }
+      }
+      
       // Remove images field and map frontend fields to backend schema
       // ProductUpdate schema does NOT include: id, sku, slug (these are immutable)
-      const { images: _images, category, featured, originalPrice, id: _id, sku: _sku, slug: _slug, ...restProduct } = product;
+      const { images: _images, category, featured, originalPrice, id: _id, sku: _sku, slug: _slug, promoPrice, promoStartDate, promoEndDate, isPromoActive, ...restProduct } = product;
       
       // Map frontend field names to backend schema
       const productData: any = {
@@ -204,6 +226,20 @@ export default function AdminProductEditPage() {
       // Map featured to is_featured (backend expects is_featured, not featured)
       if (featured !== undefined) {
         productData.is_featured = featured;
+      }
+      
+      // Map promotion fields to backend schema
+      if (promoPrice !== undefined) {
+        productData.promo_price = promoPrice;
+      }
+      if (promoStartDate !== undefined) {
+        productData.promo_start_date = promoStartDate;
+      }
+      if (promoEndDate !== undefined) {
+        productData.promo_end_date = promoEndDate;
+      }
+      if (isPromoActive !== undefined) {
+        productData.is_promo_active = isPromoActive;
       }
       
       // Note: category field is not sent - backend uses category_id (UUID)
@@ -480,6 +516,105 @@ export default function AdminProductEditPage() {
           <label htmlFor="featured" className="text-sm text-gray-400">
             {t.admin.products.featuredProduct}
           </label>
+        </div>
+
+        {/* Promotion Section */}
+        <div className="border-t border-gold-600/10 pt-6 space-y-4">
+          <h3 className="text-lg font-semibold text-white mb-4">Promotion</h3>
+          
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="isPromoActive"
+              checked={product.isPromoActive || false}
+              onChange={(e) => {
+                const isActive = e.target.checked;
+                setProduct({
+                  ...product,
+                  isPromoActive: isActive,
+                  // Clear promo fields if disabling
+                  ...(isActive ? {} : {
+                    promoPrice: undefined,
+                    promoStartDate: undefined,
+                    promoEndDate: undefined,
+                  }),
+                });
+              }}
+              className="w-4 h-4 rounded border-gold-600/30 bg-black-50 text-gold-600 focus:ring-gold-600"
+            />
+            <label htmlFor="isPromoActive" className="text-sm text-gray-400">
+              Activer la promotion
+            </label>
+          </div>
+
+          {product.isPromoActive && (
+            <div className="space-y-4 pl-6 border-l-2 border-gold-600/20">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Prix promotionnel (MAD)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={product.price || 0}
+                  value={product.promoPrice ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                    setProduct({ ...product, promoPrice: value });
+                  }}
+                  className="w-full px-4 py-2 bg-black-50 border border-gold-600/10 rounded-lg text-white focus:outline-none focus:border-gold-600/30"
+                  placeholder="Prix promotionnel"
+                />
+                {product.promoPrice !== undefined && product.price && product.promoPrice >= product.price && (
+                  <p className="text-red-500 text-xs mt-1">
+                    Le prix promotionnel doit être inférieur au prix régulier ({product.price} MAD)
+                  </p>
+                )}
+                {product.promoPrice !== undefined && product.price && product.promoPrice < product.price && (
+                  <p className="text-green-500 text-xs mt-1">
+                    Réduction: {Math.round(((product.price - product.promoPrice) / product.price) * 100)}%
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Date de début
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={product.promoStartDate ? new Date(product.promoStartDate).toISOString().slice(0, 16) : ''}
+                    onChange={(e) => {
+                      const value = e.target.value ? new Date(e.target.value).toISOString() : undefined;
+                      setProduct({ ...product, promoStartDate: value });
+                    }}
+                    className="w-full px-4 py-2 bg-black-50 border border-gold-600/10 rounded-lg text-white focus:outline-none focus:border-gold-600/30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Date de fin
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={product.promoEndDate ? new Date(product.promoEndDate).toISOString().slice(0, 16) : ''}
+                    onChange={(e) => {
+                      const value = e.target.value ? new Date(e.target.value).toISOString() : undefined;
+                      setProduct({ ...product, promoEndDate: value });
+                    }}
+                    className="w-full px-4 py-2 bg-black-50 border border-gold-600/10 rounded-lg text-white focus:outline-none focus:border-gold-600/30"
+                  />
+                  {product.promoStartDate && product.promoEndDate && new Date(product.promoEndDate) <= new Date(product.promoStartDate) && (
+                    <p className="text-red-500 text-xs mt-1">
+                      La date de fin doit être après la date de début
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-4">

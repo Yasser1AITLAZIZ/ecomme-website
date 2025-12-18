@@ -14,6 +14,8 @@ export default function AdminOrderDetailPage() {
   const [order, setOrder] = useState<AdminOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [newStatus, setNewStatus] = useState('');
+  const [newPaymentStatus, setNewPaymentStatus] = useState('');
+  const [newDiscountAmount, setNewDiscountAmount] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -27,6 +29,8 @@ export default function AdminOrderDetailPage() {
       const data = await adminApi.getOrder(orderId);
       setOrder(data);
       setNewStatus(data.status);
+      setNewPaymentStatus(data.payment_status);
+      setNewDiscountAmount(data.discount_amount.toString());
       setAdminNotes(data.admin_notes || '');
     } catch (error: any) {
       alert('Failed to load order: ' + error.message);
@@ -43,6 +47,39 @@ export default function AdminOrderDetailPage() {
       await loadOrder();
     } catch (error: any) {
       alert('Failed to update status: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePaymentStatusUpdate = async () => {
+    try {
+      setSaving(true);
+      await adminApi.updatePaymentStatus(orderId, newPaymentStatus);
+      await loadOrder();
+    } catch (error: any) {
+      alert('Failed to update payment status: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDiscountUpdate = async () => {
+    try {
+      setSaving(true);
+      const discountAmount = parseFloat(newDiscountAmount);
+      if (isNaN(discountAmount) || discountAmount < 0) {
+        alert('Please enter a valid discount amount (must be >= 0)');
+        return;
+      }
+      if (order && discountAmount > order.subtotal) {
+        alert(`Discount cannot exceed subtotal (${order.subtotal.toLocaleString()} MAD)`);
+        return;
+      }
+      await adminApi.updateOrderDiscount(orderId, discountAmount);
+      await loadOrder();
+    } catch (error: any) {
+      alert('Failed to update discount: ' + error.message);
     } finally {
       setSaving(false);
     }
@@ -150,6 +187,56 @@ export default function AdminOrderDetailPage() {
               className="w-full px-4 py-2 bg-gold-600 hover:bg-gold-700 text-white rounded-lg disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Update Status'}
+            </button>
+          </div>
+
+          <div className="bg-black-100 rounded-xl border border-gold-600/10 p-6">
+            <h2 className="text-xl font-semibold text-white mb-4">Update Payment Status</h2>
+            <select
+              value={newPaymentStatus}
+              onChange={(e) => setNewPaymentStatus(e.target.value)}
+              className="w-full px-4 py-2 bg-black-50 border border-gold-600/10 rounded-lg text-white mb-4"
+            >
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+              <option value="failed">Failed</option>
+              <option value="refunded">Refunded</option>
+            </select>
+            <button
+              onClick={handlePaymentStatusUpdate}
+              disabled={saving || newPaymentStatus === order.payment_status}
+              className="w-full px-4 py-2 bg-gold-600 hover:bg-gold-700 text-white rounded-lg disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Update Payment Status'}
+            </button>
+          </div>
+
+          <div className="bg-black-100 rounded-xl border border-gold-600/10 p-6">
+            <h2 className="text-xl font-semibold text-white mb-4">Apply Discount</h2>
+            <div className="mb-4">
+              <label className="block text-sm text-gray-400 mb-2">Discount Amount (MAD)</label>
+              <input
+                type="number"
+                value={newDiscountAmount}
+                onChange={(e) => setNewDiscountAmount(e.target.value)}
+                min="0"
+                max={order?.subtotal || 0}
+                step="0.01"
+                className="w-full px-4 py-2 bg-black-50 border border-gold-600/10 rounded-lg text-white"
+                placeholder="0.00"
+              />
+              {order && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Max: {order.subtotal.toLocaleString()} MAD
+                </p>
+              )}
+            </div>
+            <button
+              onClick={handleDiscountUpdate}
+              disabled={saving || parseFloat(newDiscountAmount) === order.discount_amount}
+              className="w-full px-4 py-2 bg-gold-600 hover:bg-gold-700 text-white rounded-lg disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Apply Discount'}
             </button>
           </div>
 

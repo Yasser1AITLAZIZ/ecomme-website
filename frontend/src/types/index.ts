@@ -10,6 +10,10 @@ export interface Product {
   stock: number;
   specifications?: Record<string, string>;
   featured?: boolean;
+  promoPrice?: number;
+  promoStartDate?: string;
+  promoEndDate?: string;
+  isPromoActive?: boolean;
 }
 
 export interface CartItem {

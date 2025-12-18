@@ -1,7 +1,7 @@
 """Dependencies (auth, supabase client, role checks)."""
-from typing import Optional
+from typing import Optional, Annotated
 import jwt
-from fastapi import Depends, HTTPException, status, Header, Request
+from fastapi import Depends, HTTPException, status, Header, Request, Path
 from supabase import Client
 from app.database import get_supabase_client
 from app.config import settings
@@ -185,23 +185,25 @@ async def get_current_user_optional(
         return None
 
 
-def validate_uuid_param(uuid_value: str) -> str:
+def validate_uuid_param(param_name: str = "id"):
     """
-    Validate UUID parameter.
+    Create a dependency function that validates a UUID path parameter.
+    
+    This creates a FastAPI dependency that extracts and validates a UUID from the path.
+    Usage: order_id: str = Depends(validate_uuid_param("order_id"))
     
     Args:
-        uuid_value: UUID string to validate
+        param_name: Name of the path parameter to validate
         
     Returns:
-        Validated UUID string
-        
-    Raises:
-        HTTPException: If UUID is invalid
+        Dependency function that validates and returns the UUID
     """
-    if not validate_uuid(uuid_value):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid UUID format"
-        )
-    return uuid_value
+    def _validate(uuid_value: Annotated[str, Path(..., description=f"{param_name} (UUID)")]) -> str:
+        if not validate_uuid(uuid_value):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid UUID format"
+            )
+        return uuid_value
+    return _validate
 

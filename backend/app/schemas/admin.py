@@ -183,6 +183,11 @@ class AdminOrderNotesUpdate(BaseModel):
     admin_notes: str
 
 
+class AdminOrderDiscountUpdate(BaseModel):
+    """Admin order discount update schema."""
+    discount_amount: float
+
+
 class BulkOrderStatusUpdate(BaseModel):
     """Bulk order status update schema."""
     order_ids: List[str]

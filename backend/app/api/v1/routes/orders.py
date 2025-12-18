@@ -421,76 +421,139 @@ async def get_order_invoice_pdf(
         
         # Create PDF
         buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
         story = []
         
         # Styles
         styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'CustomTitle',
+        
+        # Company title style - large and prominent
+        company_title_style = ParagraphStyle(
+            'CompanyTitle',
             parent=styles['Heading1'],
-            fontSize=24,
+            fontSize=32,
             textColor=colors.HexColor('#fbbf24'),
-            spaceAfter=30,
-            alignment=TA_CENTER if not is_rtl else TA_RIGHT
+            spaceAfter=8,
+            alignment=TA_CENTER if not is_rtl else TA_RIGHT,
+            fontName='Helvetica-Bold'
         )
         
-        heading_style = ParagraphStyle(
-            'CustomHeading',
+        # Invoice title style
+        invoice_title_style = ParagraphStyle(
+            'InvoiceTitle',
             parent=styles['Heading2'],
-            fontSize=14,
+            fontSize=18,
             textColor=colors.HexColor('#1a1a1a'),
-            spaceAfter=12,
-            alignment=TA_LEFT if not is_rtl else TA_RIGHT
+            spaceAfter=20,
+            alignment=TA_CENTER if not is_rtl else TA_RIGHT,
+            fontName='Helvetica'
         )
         
+        # Section heading style
+        heading_style = ParagraphStyle(
+            'SectionHeading',
+            parent=styles['Heading2'],
+            fontSize=12,
+            textColor=colors.HexColor('#1a1a1a'),
+            spaceAfter=8,
+            spaceBefore=12,
+            alignment=TA_LEFT if not is_rtl else TA_RIGHT,
+            fontName='Helvetica-Bold'
+        )
+        
+        # Normal text style
         normal_style = ParagraphStyle(
-            'CustomNormal',
+            'NormalText',
             parent=styles['Normal'],
             fontSize=10,
-            alignment=TA_LEFT if not is_rtl else TA_RIGHT
+            alignment=TA_LEFT if not is_rtl else TA_RIGHT,
+            textColor=colors.HexColor('#333333'),
+            leading=14
         )
         
-        # Title
-        story.append(Paragraph(t["primo_store"], title_style))
-        story.append(Spacer(1, 0.2*inch))
-        story.append(Paragraph(t["order_confirmation"], heading_style))
-        story.append(Spacer(1, 0.3*inch))
+        # Bold text style for summary
+        bold_style = ParagraphStyle(
+            'BoldText',
+            parent=styles['Normal'],
+            fontSize=11,
+            alignment=TA_LEFT if not is_rtl else TA_RIGHT,
+            textColor=colors.HexColor('#1a1a1a'),
+            fontName='Helvetica-Bold',
+            leading=14
+        )
         
-        # Order info
+        # Total amount bold style
+        total_bold_style = ParagraphStyle(
+            'TotalBold',
+            parent=styles['Normal'],
+            fontSize=13,
+            alignment=TA_LEFT if not is_rtl else TA_RIGHT,
+            textColor=colors.HexColor('#fbbf24'),
+            fontName='Helvetica-Bold',
+            leading=16
+        )
+        
+        # Footer style
+        footer_style = ParagraphStyle(
+            'FooterText',
+            parent=styles['Normal'],
+            fontSize=9,
+            alignment=TA_CENTER if not is_rtl else TA_RIGHT,
+            textColor=colors.HexColor('#666666'),
+            leading=12
+        )
+        
+        # Header Section - Modern and Professional
+        story.append(Paragraph(t["primo_store"], company_title_style))
+        story.append(Spacer(1, 0.1*inch))
+        story.append(Paragraph(t["order_confirmation"], invoice_title_style))
+        story.append(Spacer(1, 0.4*inch))
+        
+        # Order info in a styled box
         order_date = datetime.fromisoformat(order["created_at"].replace('Z', '+00:00'))
         order_info_data = [
             [t["order_number"], order["order_number"]],
             [t["date"], order_date.strftime("%Y-%m-%d %H:%M")],
         ]
         
-        order_info_table = Table(order_info_data, colWidths=[2*inch, 4*inch])
+        order_info_table = Table(order_info_data, colWidths=[2.2*inch, 4.3*inch])
         order_info_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f9fafb')),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+            ('BACKGROUND', (1, 0), (1, -1), colors.white),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1a1a1a')),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT' if not is_rtl else 'RIGHT'),
+            ('ALIGN', (1, 0), (1, -1), 'LEFT' if not is_rtl else 'RIGHT'),
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-            ('TOPPADDING', (0, 0), (-1, -1), 12),
-            ('GRID', (0, 0), (-1, -1), 1, colors.grey)
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('LEFTPADDING', (0, 0), (-1, -1), 12),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e5e7eb')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
         ]))
         story.append(order_info_table)
-        story.append(Spacer(1, 0.3*inch))
+        story.append(Spacer(1, 0.4*inch))
         
-        # Shipping address
+        # Shipping address section
         if order.get("shipping_address"):
+            story.append(Paragraph(t["shipping_address"], heading_style))
             shipping_addr = order["shipping_address"]
-            address_lines = [
-                t["shipping_address"] + ":",
-                shipping_addr.get("street", ""),
-                f"{shipping_addr.get('city', '')}, {shipping_addr.get('state', '')}",
-                f"{shipping_addr.get('zipCode', '')} {shipping_addr.get('country', 'Morocco')}"
-            ]
-            for line in address_lines:
-                if line.strip():
-                    story.append(Paragraph(line, normal_style))
-            story.append(Spacer(1, 0.2*inch))
+            address_parts = []
+            if shipping_addr.get("street"):
+                address_parts.append(shipping_addr.get("street"))
+            city_state = f"{shipping_addr.get('city', '')}, {shipping_addr.get('state', '')}".strip(', ')
+            if city_state:
+                address_parts.append(city_state)
+            zip_country = f"{shipping_addr.get('zipCode', '')} {shipping_addr.get('country', 'Morocco')}".strip()
+            if zip_country:
+                address_parts.append(zip_country)
+            
+            for part in address_parts:
+                if part.strip():
+                    story.append(Paragraph(part.strip(), normal_style))
+            story.append(Spacer(1, 0.25*inch))
         
         # Delivery and payment info
         delivery_type = order.get("delivery_type", "delivery")
@@ -498,10 +561,11 @@ async def get_order_invoice_pdf(
         payment_method = order.get("payment_method", "cod")
         payment_text = t["cod"] if payment_method == "cod" else payment_method
         story.append(Paragraph(f"{t['payment_method']}: {payment_text}", normal_style))
-        story.append(Spacer(1, 0.3*inch))
+        story.append(Spacer(1, 0.4*inch))
         
-        # Items table
+        # Items table with modern styling
         story.append(Paragraph(t["items"], heading_style))
+        story.append(Spacer(1, 0.15*inch))
         
         items_data = [[t["product"], t["quantity"], t["unit_price"], t["total"]]]
         for item in items:
@@ -512,56 +576,92 @@ async def get_order_invoice_pdf(
                 f"{item['total']:.2f} {order['currency']}"
             ])
         
-        items_table = Table(items_data, colWidths=[3*inch, 1*inch, 1.5*inch, 1.5*inch])
+        items_table = Table(items_data, colWidths=[3.2*inch, 0.9*inch, 1.4*inch, 1.5*inch])
         items_table.setStyle(TableStyle([
+            # Header row styling
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a1a1a')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#fbbf24')),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT' if not is_rtl else 'RIGHT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('TOPPADDING', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 14),
+            ('TOPPADDING', (0, 0), (-1, 0), 14),
+            ('LEFTPADDING', (0, 0), (-1, 0), 12),
+            ('RIGHTPADDING', (0, 0), (-1, 0), 12),
+            # Data rows styling
             ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#1a1a1a')),
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 1), (-1, -1), 10),
-            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')])
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
+            ('TOPPADDING', (0, 1), (-1, -1), 10),
+            ('LEFTPADDING', (0, 1), (-1, -1), 12),
+            ('RIGHTPADDING', (0, 1), (-1, -1), 12),
+            # Alignment
+            ('ALIGN', (0, 0), (0, -1), 'LEFT' if not is_rtl else 'RIGHT'),
+            ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+            ('ALIGN', (2, 0), (2, -1), 'RIGHT' if not is_rtl else 'LEFT'),
+            ('ALIGN', (3, 0), (3, -1), 'RIGHT' if not is_rtl else 'LEFT'),
+            # Borders and grid
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e5e7eb')),
+            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.HexColor('#fbbf24')),
+            # Alternating row backgrounds
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#fafafa')]),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
         ]))
         story.append(items_table)
-        story.append(Spacer(1, 0.3*inch))
+        story.append(Spacer(1, 0.4*inch))
         
-        # Summary
-        summary_data = [
-            [t["subtotal"], f"{float(order['subtotal']):.2f} {order['currency']}"],
-            [t["shipping"], f"{float(order['shipping_cost']):.2f} {order['currency']}"],
-        ]
+        # Summary section with proper styling (no HTML tags)
+        summary_data = []
         
+        # Subtotal row
+        subtotal_label = Paragraph(t["subtotal"], normal_style)
+        subtotal_value = Paragraph(f"{float(order['subtotal']):.2f} {order['currency']}", normal_style)
+        summary_data.append([subtotal_label, subtotal_value])
+        
+        # Shipping row
+        shipping_label = Paragraph(t["shipping"], normal_style)
+        shipping_value = Paragraph(f"{float(order['shipping_cost']):.2f} {order['currency']}", normal_style)
+        summary_data.append([shipping_label, shipping_value])
+        
+        # Discount row (only if discount > 0)
         if order.get("discount_amount") and float(order["discount_amount"]) > 0:
-            summary_data.append([t["discount"], f"-{float(order['discount_amount']):.2f} {order['currency']}"])
+            discount_label = Paragraph(t["discount"], normal_style)
+            discount_value = Paragraph(f"-{float(order['discount_amount']):.2f} {order['currency']}", normal_style)
+            summary_data.append([discount_label, discount_value])
         
-        summary_data.append([
-            f"<b>{t['total_amount']}</b>",
-            f"<b>{float(order['total']):.2f} {order['currency']}</b>"
-        ])
+        # Total row - using bold style instead of HTML
+        total_label = Paragraph(t['total_amount'], total_bold_style)
+        total_value = Paragraph(f"{float(order['total']):.2f} {order['currency']}", total_bold_style)
+        summary_data.append([total_label, total_value])
         
-        summary_table = Table(summary_data, colWidths=[4*inch, 2*inch])
+        summary_table = Table(summary_data, colWidths=[4.5*inch, 2*inch])
         summary_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (0, -1), 'LEFT' if not is_rtl else 'RIGHT'),
-            ('ALIGN', (1, 0), (1, -1), 'RIGHT' if not is_rtl else 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, -2), 'Helvetica'),
-            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#fbbf24')),
-            ('TOPPADDING', (0, -1), (-1, -1), 12),
-            ('BOTTOMPADDING', (0, -1), (-1, -1), 12),
-            ('LINEABOVE', (0, -1), (-1, -1), 2, colors.HexColor('#fbbf24'))
+            ('ALIGN', (0, 0), (0, -2), 'LEFT' if not is_rtl else 'RIGHT'),
+            ('ALIGN', (1, 0), (1, -2), 'RIGHT' if not is_rtl else 'LEFT'),
+            ('ALIGN', (0, -1), (0, -1), 'LEFT' if not is_rtl else 'RIGHT'),
+            ('ALIGN', (1, -1), (1, -1), 'RIGHT' if not is_rtl else 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -2), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -2), 8),
+            ('TOPPADDING', (0, -1), (-1, -1), 14),
+            ('BOTTOMPADDING', (0, -1), (-1, -1), 14),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            # Top border for total row
+            ('LINEABOVE', (0, -1), (-1, -1), 2, colors.HexColor('#fbbf24')),
+            ('SPACEABOVE', (0, -1), (-1, -1), 6)
         ]))
         story.append(summary_table)
-        story.append(Spacer(1, 0.5*inch))
+        story.append(Spacer(1, 0.6*inch))
         
-        # Thank you message
-        story.append(Paragraph(t["thank_you"], normal_style))
+        # Thank you message with footer styling
+        story.append(Paragraph(t["thank_you"], footer_style))
+        story.append(Spacer(1, 0.2*inch))
+        
+        # Footer with company info
+        footer_text = f"{t['primo_store']} - {t.get('footer_note', 'Thank you for your business!')}"
+        story.append(Paragraph(footer_text, footer_style))
         
         # Build PDF
         doc.build(story)

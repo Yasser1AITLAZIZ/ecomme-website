@@ -233,7 +233,9 @@ export default function OrderSuccessPage() {
                       : `${order.shippingCost.toFixed(2)} MAD`}
                   </span>
                 </div>
-                {order.discountAmount && order.discountAmount > 0 && (
+                {order.discountAmount !== undefined && 
+                 order.discountAmount !== null && 
+                 order.discountAmount > 0 && (
                   <div className="flex justify-between text-gray-400">
                     <span>{t.orderSuccess.discount}</span>
                     <span className="text-green-400 font-semibold">

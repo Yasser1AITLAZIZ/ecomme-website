@@ -109,6 +109,8 @@ async def list_products(
                     product_data["cost_price"] = str(product_data["cost_price"])
                 if "weight" in product_data and product_data["weight"] is not None:
                     product_data["weight"] = str(product_data["weight"])
+                if "promo_price" in product_data and product_data["promo_price"] is not None:
+                    product_data["promo_price"] = str(product_data["promo_price"])
                 
                 # Convert to Product schema
                 product = Product(**product_data)
@@ -177,6 +179,8 @@ async def get_product(
         product_data["cost_price"] = str(product_data["cost_price"])
     if "weight" in product_data and product_data["weight"] is not None:
         product_data["weight"] = str(product_data["weight"])
+    if "promo_price" in product_data and product_data["promo_price"] is not None:
+        product_data["promo_price"] = str(product_data["promo_price"])
     
     # Convert to Product schema
     product = Product(**product_data)
@@ -249,6 +253,8 @@ async def create_product(
         product_data["cost_price"] = str(product_data["cost_price"])
     if "weight" in product_data and product_data["weight"] is not None:
         product_data["weight"] = str(product_data["weight"])
+    if "promo_price" in product_data and product_data["promo_price"] is not None:
+        product_data["promo_price"] = str(product_data["promo_price"])
     
     # Create Product model and use model_dump(mode='json') to properly serialize Decimals
     product = Product(**product_data)
@@ -275,6 +281,8 @@ async def create_product(
         result["cost_price"] = str(result["cost_price"])
     if "weight" in result and isinstance(result.get("weight"), Decimal):
         result["weight"] = str(result["weight"])
+    if "promo_price" in result and isinstance(result.get("promo_price"), Decimal):
+        result["promo_price"] = str(result["promo_price"])
     
     # Recursively convert any remaining Decimals (e.g., in specifications dict)
     result = convert_decimals_to_strings(result)
@@ -323,6 +331,8 @@ async def update_product(
                 update_data["cost_price"] = str(update_data["cost_price"])
             if "weight" in update_data and isinstance(update_data["weight"], Decimal):
                 update_data["weight"] = str(update_data["weight"])
+            if "promo_price" in update_data and isinstance(update_data["promo_price"], Decimal):
+                update_data["promo_price"] = str(update_data["promo_price"])
             response = db.table("products").update(update_data).eq("id", product_id).execute()
             
             # Convert Decimal fields in old_values and new_values to strings for audit logging
@@ -362,6 +372,8 @@ async def update_product(
                 product_data["cost_price"] = str(product_data["cost_price"])
             if "weight" in product_data and product_data["weight"] is not None:
                 product_data["weight"] = str(product_data["weight"])
+            if "promo_price" in product_data and product_data["promo_price"] is not None:
+                product_data["promo_price"] = str(product_data["promo_price"])
             
             # Create Product model and use model_dump(mode='json') to properly serialize Decimals
             # Pydantic will convert string values back to Decimal during validation, but model_dump(mode='json')
@@ -378,6 +390,8 @@ async def update_product(
                 result["cost_price"] = str(result["cost_price"])
             if "weight" in result and isinstance(result.get("weight"), Decimal):
                 result["weight"] = str(result["weight"])
+            if "promo_price" in result and isinstance(result.get("promo_price"), Decimal):
+                result["promo_price"] = str(result["promo_price"])
             
             return result
         else:
@@ -393,6 +407,8 @@ async def update_product(
             product_data["cost_price"] = str(product_data["cost_price"])
         if "weight" in product_data and product_data["weight"] is not None:
             product_data["weight"] = str(product_data["weight"])
+        if "promo_price" in product_data and product_data["promo_price"] is not None:
+            product_data["promo_price"] = str(product_data["promo_price"])
         
         # Create Product model and use model_dump(mode='json') to properly serialize Decimals
         product = Product(**product_data)
@@ -407,6 +423,10 @@ async def update_product(
             result["cost_price"] = str(result["cost_price"])
         if "weight" in result and isinstance(result.get("weight"), Decimal):
             result["weight"] = str(result["weight"])
+        if "promo_price" in result and isinstance(result.get("promo_price"), Decimal):
+            result["promo_price"] = str(result["promo_price"])
+        if "promo_price" in result and isinstance(result.get("promo_price"), Decimal):
+            result["promo_price"] = str(result["promo_price"])
         
         return result
     except Exception as e:

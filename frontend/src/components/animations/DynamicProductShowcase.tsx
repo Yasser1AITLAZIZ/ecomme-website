@@ -8,6 +8,7 @@ import { ArrowRight, Sparkles, TrendingUp, Star, Zap } from 'lucide-react';
 import type { Product } from '@/types';
 import { useI18n } from '@/lib/i18n/context';
 import { cn } from '@/lib/utils/cn';
+import { getProductPrice } from '@/lib/utils/productPrice';
 
 interface DynamicProductShowcaseProps {
   className?: string;
@@ -64,6 +65,7 @@ export function DynamicProductShowcase({ className = '', products = [] }: Dynami
   }, [mouseX, mouseY]);
 
   const currentProduct = smartphoneProducts[currentProductIndex] || null;
+  const priceInfo = currentProduct ? getProductPrice(currentProduct) : null;
 
   // Format price
   const formatPrice = (price: number) => {
@@ -210,12 +212,17 @@ export function DynamicProductShowcase({ className = '', products = [] }: Dynami
                     <p className="text-gray-400 text-xs mb-0.5">
                       {t.home.showcase.startingFrom || 'À partir de'}
                     </p>
+                    {priceInfo?.isOnPromo && priceInfo.discountPercentage && (
+                      <p className="text-red-500 text-xs font-bold mb-0.5">
+                        -{priceInfo.discountPercentage}%
+                      </p>
+                    )}
                     <p className="text-gold-600 font-bold text-xl">
-                      {formatPrice(currentProduct.price)} MAD
+                      {priceInfo ? formatPrice(priceInfo.currentPrice) : formatPrice(currentProduct.price)} MAD
                     </p>
-                    {currentProduct.originalPrice && (
+                    {priceInfo?.originalPrice && (
                       <p className="text-gray-500 text-xs line-through mt-0.5">
-                        {formatPrice(currentProduct.originalPrice)} MAD
+                        {formatPrice(priceInfo.originalPrice)} MAD
                       </p>
                     )}
                   </motion.div>
