@@ -1,15 +1,17 @@
 """Admin order management routes."""
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status as http_status, Path
 from typing import Optional, List
 from datetime import datetime
-from app.api.v1.deps import get_db, validate_uuid_param
+from app.api.v1.deps import get_db
 from app.core.permissions import require_admin
+from app.core.security import validate_uuid
 from app.schemas.admin import (
     AdminOrderList,
     AdminOrderDetail,
     AdminOrderStatusUpdate,
     AdminOrderPaymentStatusUpdate,
     AdminOrderNotesUpdate,
+    AdminOrderDiscountUpdate,
     BulkOrderStatusUpdate
 )
 from app.schemas.user import UserProfile
@@ -63,10 +65,7 @@ async def list_orders(
             status,
             payment_status,
             payment_method,
-            created_at,
-            user_profiles:user_id (
-                name
-            )
+            created_at
             """
         )
         
@@ -93,9 +92,18 @@ async def list_orders(
         
         # Get item counts for each order
         orders = []
+        # Get all user_ids from orders
+        user_ids = [order.get("user_id") for order in (response.data or []) if order.get("user_id")]
+        # Fetch user profiles in batch
+        user_profiles_map = {}
+        if user_ids:
+            profiles_response = db.table("user_profiles").select("id,name").in_("id", user_ids).execute()
+            user_profiles_map = {profile["id"]: profile for profile in (profiles_response.data or [])}
+        
         for order in (response.data or []):
-            user_profile = order.get("user_profiles", {}) if isinstance(order.get("user_profiles"), dict) else {}
-            customer_name = user_profile.get("name") if user_profile else None
+            customer_name = None
+            if order.get("user_id") and order["user_id"] in user_profiles_map:
+                customer_name = user_profiles_map[order["user_id"]].get("name")
             
             # Get item count
             items_response = db.table("order_items").select("id", count="exact").eq(
@@ -120,14 +128,14 @@ async def list_orders(
         return orders
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch orders: {str(e)}"
         )
 
 
 @router.get("/{order_id}", response_model=AdminOrderDetail)
 async def get_order(
-    order_id: str = Depends(validate_uuid_param),
+    order_id: str = Path(..., description="Order ID"),
     db: Client = Depends(get_db),
     current_user: UserProfile = Depends(require_admin)
 ):
@@ -137,6 +145,12 @@ async def get_order(
     Returns:
         Order details with items and status history
     """
+    # Validate UUID format
+    if not validate_uuid(order_id):
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid UUID format"
+        )
     try:
         order_service = OrderService(db)
         order = order_service.get_order(order_id)
@@ -157,7 +171,7 @@ async def get_order(
             except:
                 pass
         
-        # Get order items with product details
+        # Get order items
         items_response = db.table("order_items").select(
             """
             id,
@@ -165,17 +179,20 @@ async def get_order(
             product_id,
             quantity,
             price,
-            created_at,
-            products:product_id (
-                name,
-                sku
-            )
+            created_at
             """
         ).eq("order_id", order_id).execute()
         
+        # Fetch products in a single query
+        product_ids = [item["product_id"] for item in (items_response.data or []) if item.get("product_id")]
+        products_map = {}
+        if product_ids:
+            products_response = db.table("products").select("id,name,sku").in_("id", product_ids).execute()
+            products_map = {product["id"]: product for product in (products_response.data or [])}
+        
         items = []
         for item in (items_response.data or []):
-            product = item.get("products", {}) if isinstance(item.get("products"), dict) else {}
+            product = products_map.get(item.get("product_id"), {})
             
             # Get product image
             images = db.table("product_images").select("image_url").eq(
@@ -205,17 +222,22 @@ async def get_order(
             status,
             changed_by,
             notes,
-            created_at,
-            user_profiles:changed_by (
-                name
-            )
+            created_at
             """
         ).eq("order_id", order_id).order("created_at", desc=True).execute()
         
+        # Get user profiles for changed_by users
+        changed_by_ids = [h.get("changed_by") for h in (status_history_response.data or []) if h.get("changed_by")]
+        changed_by_profiles_map = {}
+        if changed_by_ids:
+            profiles_response = db.table("user_profiles").select("id,name").in_("id", changed_by_ids).execute()
+            changed_by_profiles_map = {profile["id"]: profile for profile in (profiles_response.data or [])}
+        
         status_history = []
         for history in (status_history_response.data or []):
-            changed_by_profile = history.get("user_profiles", {}) if isinstance(history.get("user_profiles"), dict) else {}
-            changed_by_name = changed_by_profile.get("name") if changed_by_profile else None
+            changed_by_name = None
+            if history.get("changed_by") and history["changed_by"] in changed_by_profiles_map:
+                changed_by_name = changed_by_profiles_map[history["changed_by"]].get("name")
             
             status_history.append({
                 "id": history["id"],
@@ -257,18 +279,24 @@ async def get_order(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch order: {str(e)}"
         )
 
 
 @router.put("/{order_id}/status")
 async def update_order_status(
-    order_id: str = Depends(validate_uuid_param),
+    order_id: str = Path(..., description="Order ID"),
     status_update: AdminOrderStatusUpdate = None,
     db: Client = Depends(get_db),
     current_user: UserProfile = Depends(require_admin)
 ):
+    # Validate UUID format
+    if not validate_uuid(order_id):
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid UUID format"
+        )
     """
     Update order status (admin only).
     
@@ -308,18 +336,24 @@ async def update_order_status(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update order status: {str(e)}"
         )
 
 
 @router.put("/{order_id}/payment-status")
 async def update_payment_status(
-    order_id: str = Depends(validate_uuid_param),
+    order_id: str = Path(..., description="Order ID"),
     payment_update: AdminOrderPaymentStatusUpdate = None,
     db: Client = Depends(get_db),
     current_user: UserProfile = Depends(require_admin)
 ):
+    # Validate UUID format
+    if not validate_uuid(order_id):
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid UUID format"
+        )
     """
     Update order payment status (admin only).
     
@@ -355,18 +389,24 @@ async def update_payment_status(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update payment status: {str(e)}"
         )
 
 
 @router.put("/{order_id}/notes")
 async def update_order_notes(
-    order_id: str = Depends(validate_uuid_param),
+    order_id: str = Path(..., description="Order ID"),
     notes_update: AdminOrderNotesUpdate = None,
     db: Client = Depends(get_db),
     current_user: UserProfile = Depends(require_admin)
 ):
+    # Validate UUID format
+    if not validate_uuid(order_id):
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid UUID format"
+        )
     """
     Update order admin notes (admin only).
     
@@ -402,8 +442,87 @@ async def update_order_notes(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update order notes: {str(e)}"
+        )
+
+
+@router.put("/{order_id}/discount")
+async def update_order_discount(
+    order_id: str = Path(..., description="Order ID"),
+    discount_update: AdminOrderDiscountUpdate = None,
+    db: Client = Depends(get_db),
+    current_user: UserProfile = Depends(require_admin)
+):
+    # Validate UUID format
+    if not validate_uuid(order_id):
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid UUID format"
+        )
+    """
+    Update order discount (admin only).
+    
+    Returns:
+        Updated order
+    """
+    try:
+        from decimal import Decimal
+        
+        # Get existing order
+        existing = db.table("orders").select("*").eq("id", order_id).execute()
+        if not existing.data:
+            raise NotFoundError("Order", order_id)
+        
+        order = existing.data[0]
+        old_discount = Decimal(str(order.get("discount_amount", 0)))
+        new_discount = Decimal(str(discount_update.discount_amount))
+        
+        # Ensure discount is not negative
+        if new_discount < 0:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="Discount amount cannot be negative"
+            )
+        
+        # Ensure discount doesn't exceed subtotal
+        subtotal = Decimal(str(order["subtotal"]))
+        if new_discount > subtotal:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="Discount amount cannot exceed subtotal"
+            )
+        
+        # Recalculate total
+        shipping_cost = Decimal(str(order.get("shipping_cost", 0)))
+        new_total = subtotal + shipping_cost - new_discount
+        
+        # Update discount and total
+        response = db.table("orders").update({
+            "discount_amount": float(new_discount),
+            "total": float(new_total),
+            "updated_at": datetime.utcnow().isoformat()
+        }).eq("id", order_id).execute()
+        
+        # Log audit
+        AuditService.log_action(
+            user_id=current_user.id,
+            action="order.discount.updated",
+            resource_type="order",
+            resource_id=order_id,
+            old_values={"discount_amount": float(old_discount), "total": float(order["total"])},
+            new_values={"discount_amount": float(new_discount), "total": float(new_total)}
+        )
+        
+        return response.data[0] if response.data else existing.data[0]
+    except NotFoundError:
+        raise
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update order discount: {str(e)}"
         )
 
 
@@ -457,6 +576,6 @@ async def bulk_update_order_status(
         return {"updated_count": updated_count, "total": len(bulk_update.order_ids)}
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to bulk update orders: {str(e)}"
         )

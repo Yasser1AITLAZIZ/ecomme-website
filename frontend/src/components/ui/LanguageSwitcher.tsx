@@ -16,7 +16,13 @@ const languages: { code: Language; name: string; flag: string }[] = [
 export function LanguageSwitcher() {
   const { language, setLanguage, isRTL } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Set mounted state after client-side hydration to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -29,7 +35,11 @@ export function LanguageSwitcher() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const currentLanguage = languages.find((lang) => lang.code === language) || languages[0];
+  const currentLanguage = languages.find((lang) => lang.code === language) || languages.find((lang) => lang.code === 'fr') || languages[0];
+  
+  // Use default language (French) for initial render to prevent hydration mismatch
+  // The language will update after mount from localStorage
+  const displayLanguage = mounted ? currentLanguage : languages.find((lang) => lang.code === 'fr') || languages[0];
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -37,13 +47,15 @@ export function LanguageSwitcher() {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black-100 border border-gold-600/20 hover:border-gold-600/50 transition-colors"
         aria-label="Change language"
+        suppressHydrationWarning
       >
         <Globe className="w-4 h-4 text-gold-600" />
-        <span className="text-sm font-medium text-white hidden sm:inline">
-          {currentLanguage.flag} {currentLanguage.name}
+        {/* Render both spans consistently - CSS handles visibility to prevent hydration mismatch */}
+        <span className="text-sm font-medium text-white hidden sm:inline" suppressHydrationWarning>
+          {displayLanguage.flag} {displayLanguage.name}
         </span>
-        <span className="text-sm font-medium text-white sm:hidden">
-          {currentLanguage.flag}
+        <span className="text-sm font-medium text-white sm:hidden" suppressHydrationWarning>
+          {displayLanguage.flag}
         </span>
       </button>
 

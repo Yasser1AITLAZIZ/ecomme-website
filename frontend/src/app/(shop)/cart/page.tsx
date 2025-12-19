@@ -8,13 +8,44 @@ import { useCartStore } from '@/lib/store/cartStore';
 import { useI18n } from '@/lib/i18n/context';
 import { ScrollReveal } from '@/components/animations/ScrollReveal';
 import { Button } from '@/components/ui/Button';
+import { deliveryFeesApi } from '@/lib/api/deliveryFees';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 export default function CartPage() {
   const router = useRouter();
   const { t, isRTL } = useI18n();
   const { items, updateQuantity, removeItem, getTotal, clearCart } = useCartStore();
   const total = getTotal();
+  const [deliveryFee, setDeliveryFee] = useState<number>(0);
+  const [isFreeShipping, setIsFreeShipping] = useState(false);
+  const [loadingFee, setLoadingFee] = useState(false);
+
+  useEffect(() => {
+    const calculateFee = async () => {
+      if (total > 0) {
+        try {
+          setLoadingFee(true);
+          const result = await deliveryFeesApi.calculateFee(total);
+          setDeliveryFee(result.fee);
+          setIsFreeShipping(result.is_free);
+        } catch (error) {
+          console.error('Failed to calculate delivery fee:', error);
+          setDeliveryFee(0);
+          setIsFreeShipping(false);
+        } finally {
+          setLoadingFee(false);
+        }
+      } else {
+        setDeliveryFee(0);
+        setIsFreeShipping(false);
+      }
+    };
+
+    calculateFee();
+  }, [total]);
+
+  const finalTotal = total + deliveryFee;
 
   if (items.length === 0) {
     return (
@@ -136,12 +167,18 @@ export default function CartPage() {
                 </div>
                 <div className="flex justify-between text-gray-400">
                   <span>{t.cart.shipping}</span>
-                  <span>{t.cart.free}</span>
+                  {loadingFee ? (
+                    <span className="text-gray-500">Calculating...</span>
+                  ) : isFreeShipping ? (
+                    <span className="text-green-400 font-semibold">{t.cart.free}</span>
+                  ) : (
+                    <span>{deliveryFee.toFixed(2)} MAD</span>
+                  )}
                 </div>
                 <div className="border-t border-gold-600/20 pt-3">
                   <div className="flex justify-between text-xl font-bold">
                     <span>{t.cart.total}</span>
-                    <span className="text-gold-600">{total.toFixed(2)} MAD</span>
+                    <span className="text-gold-600">{finalTotal.toFixed(2)} MAD</span>
                   </div>
                 </div>
               </div>

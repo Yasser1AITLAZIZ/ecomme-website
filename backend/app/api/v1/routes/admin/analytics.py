@@ -147,6 +147,37 @@ async def get_user_analytics(
         )
 
 
+@router.get("/dashboard-complete")
+async def get_dashboard_complete(
+    period: str = Query("month", regex="^(day|week|month|year)$"),
+    db: Client = Depends(get_db),
+    current_user: UserProfile = Depends(require_admin)
+):
+    """
+    Get complete dashboard data (stats + revenue) in a single call.
+    Optimized endpoint that reduces API calls.
+    
+    Args:
+        period: Period type for revenue stats (day, week, month, year)
+        
+    Returns:
+        Combined dashboard statistics and revenue data
+    """
+    try:
+        analytics_service = AnalyticsService(db)
+        stats = analytics_service.get_dashboard_stats()
+        revenue = analytics_service.get_revenue_stats(period)
+        return {
+            "stats": stats,
+            "revenue": revenue
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch dashboard data: {str(e)}"
+        )
+
+
 @router.get("/trends")
 async def get_trends(
     metric: str = Query(..., regex="^(revenue|orders|users)$"),

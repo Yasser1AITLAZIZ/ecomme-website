@@ -14,6 +14,7 @@ import { useUIStore } from '@/lib/store/uiStore';
 import { useI18n } from '@/lib/i18n/context';
 import { Button } from '@/components/ui/Button';
 import type { Product } from '@/types';
+import { getProductPrice } from '@/lib/utils/productPrice';
 
 export default function ProductDetailPage() {
   const { t, isRTL } = useI18n();
@@ -70,6 +71,8 @@ export default function ProductDetailPage() {
     );
   }
 
+  const priceInfo = getProductPrice(product);
+
   return (
     <div className="container mx-auto px-4 py-12">
       <ScrollReveal>
@@ -103,12 +106,17 @@ export default function ProductDetailPage() {
 
             {/* Price */}
             <div className="flex items-center gap-4">
+              {priceInfo.isOnPromo && priceInfo.discountPercentage && (
+                <span className="bg-red-500 text-white text-sm font-bold px-3 py-1 rounded">
+                  -{priceInfo.discountPercentage}%
+                </span>
+              )}
               <span className="text-4xl font-bold text-gold-600">
-                {product.price.toFixed(2)} MAD
+                {priceInfo.currentPrice.toFixed(2)} MAD
               </span>
-              {product.originalPrice && (
+              {priceInfo.originalPrice && (
                 <span className="text-2xl text-gray-500 line-through">
-                  {product.originalPrice.toFixed(2)} MAD
+                  {priceInfo.originalPrice.toFixed(2)} MAD
                 </span>
               )}
             </div>

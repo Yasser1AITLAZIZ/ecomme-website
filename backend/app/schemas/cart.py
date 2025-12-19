@@ -24,7 +24,8 @@ class CartItemUpdate(BaseModel):
 class CartItem(CartItemBase):
     """Cart item response schema."""
     id: str
-    user_id: str
+    user_id: Optional[str] = None
+    guest_session_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     # Product details (joined)
@@ -39,6 +40,11 @@ class CartItem(CartItemBase):
 class CartSyncRequest(BaseModel):
     """Cart sync request schema."""
     items: List[CartItemCreate]
+
+
+class CartMergeRequest(BaseModel):
+    """Cart merge request schema."""
+    guest_session_id: str
 
 
 class CartResponse(BaseModel):

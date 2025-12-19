@@ -24,6 +24,10 @@ class ProductBase(BaseModel):
     weight: Optional[Decimal] = None
     is_featured: bool = False
     is_active: bool = True
+    promo_price: Optional[Decimal] = None
+    promo_start_date: Optional[datetime] = None
+    promo_end_date: Optional[datetime] = None
+    is_promo_active: bool = False
 
 
 class ProductCreate(ProductBase):
@@ -51,6 +55,10 @@ class ProductUpdate(BaseModel):
     weight: Optional[Decimal] = None
     is_featured: Optional[bool] = None
     is_active: Optional[bool] = None
+    promo_price: Optional[Decimal] = None
+    promo_start_date: Optional[datetime] = None
+    promo_end_date: Optional[datetime] = None
+    is_promo_active: Optional[bool] = None
 
 
 class Product(ProductBase):

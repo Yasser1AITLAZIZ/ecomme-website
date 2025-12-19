@@ -1,9 +1,51 @@
 """Analytics service for dashboard statistics and metrics."""
 from typing import Dict, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from supabase import Client
 from app.database import get_supabase_client
+
+# Simple in-memory cache with TTL
+_cache: Dict[str, Dict] = {}
+CACHE_TTL = 5 * 60  # 5 minutes in seconds
+
+
+def _get_cache_key(method: str, *args) -> str:
+    """Generate cache key from method name and arguments."""
+    key_parts = [method]
+    for arg in args:
+        if isinstance(arg, datetime):
+            key_parts.append(arg.isoformat())
+        else:
+            key_parts.append(str(arg))
+    return ":".join(key_parts)
+
+
+def _is_cache_valid(cache_entry: Dict) -> bool:
+    """Check if cache entry is still valid."""
+    if not cache_entry:
+        return False
+    timestamp = cache_entry.get("timestamp", 0)
+    return (datetime.now(timezone.utc).timestamp() - timestamp) < CACHE_TTL
+
+
+def _get_cached(key: str) -> Optional[Dict]:
+    """Get value from cache if valid."""
+    entry = _cache.get(key)
+    if entry and _is_cache_valid(entry):
+        return entry.get("data")
+    if entry:
+        # Remove expired entry
+        del _cache[key]
+    return None
+
+
+def _set_cache(key: str, data: Dict):
+    """Store value in cache."""
+    _cache[key] = {
+        "data": data,
+        "timestamp": datetime.now(timezone.utc).timestamp()
+    }
 
 
 class AnalyticsService:
@@ -16,80 +58,151 @@ class AnalyticsService:
     def get_dashboard_stats(self) -> Dict:
         """
         Get main dashboard statistics.
+        Uses caching to improve performance.
         
         Returns:
             Dictionary with dashboard statistics
         """
-        now = datetime.utcnow()
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        week_start = today_start - timedelta(days=7)
-        month_start = today_start - timedelta(days=30)
-        year_start = today_start.replace(month=1, day=1)
-        
-        # Total revenue
-        total_revenue = self._get_total_revenue()
-        today_revenue = self._get_revenue_for_period(today_start, now)
-        week_revenue = self._get_revenue_for_period(week_start, now)
-        month_revenue = self._get_revenue_for_period(month_start, now)
-        year_revenue = self._get_revenue_for_period(year_start, now)
-        
-        # Order counts
-        total_orders = self._get_order_count()
-        today_orders = self._get_order_count_for_period(today_start, now)
-        week_orders = self._get_order_count_for_period(week_start, now)
-        month_orders = self._get_order_count_for_period(month_start, now)
-        
-        # Order status distribution
-        order_status_dist = self._get_order_status_distribution()
-        
-        # User statistics
-        total_users = self._get_user_count()
-        new_users_today = self._get_user_count_for_period(today_start, now)
-        new_users_week = self._get_user_count_for_period(week_start, now)
-        new_users_month = self._get_user_count_for_period(month_start, now)
-        
-        # Product statistics
-        total_products = self._get_product_count()
-        active_products = self._get_active_product_count()
-        low_stock_products = self._get_low_stock_product_count()
-        out_of_stock_products = self._get_out_of_stock_product_count()
-        
-        # Payment method distribution
-        payment_method_dist = self._get_payment_method_distribution()
-        
-        return {
-            "revenue": {
-                "total": float(total_revenue),
-                "today": float(today_revenue),
-                "week": float(week_revenue),
-                "month": float(month_revenue),
-                "year": float(year_revenue)
-            },
-            "orders": {
-                "total": total_orders,
-                "today": today_orders,
-                "week": week_orders,
-                "month": month_orders,
-                "by_status": order_status_dist
-            },
-            "users": {
-                "total": total_users,
-                "new_today": new_users_today,
-                "new_week": new_users_week,
-                "new_month": new_users_month
-            },
-            "products": {
-                "total": total_products,
-                "active": active_products,
-                "low_stock": low_stock_products,
-                "out_of_stock": out_of_stock_products
-            },
-            "payment_methods": payment_method_dist
-        }
+        try:
+            # Check cache first
+            cache_key = _get_cache_key("dashboard_stats")
+            cached = _get_cached(cache_key)
+            if cached:
+                return cached
+            
+            now = datetime.now(timezone.utc)
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            week_start = today_start - timedelta(days=7)
+            month_start = today_start - timedelta(days=30)
+            year_start = today_start.replace(month=1, day=1)
+            
+            # Total revenue - optimize by fetching all paid orders once
+            all_paid_orders = self._get_all_paid_orders()
+            total_revenue = sum(Decimal(str(o.get("total", 0))) for o in all_paid_orders)
+            today_revenue = sum(Decimal(str(o.get("total", 0))) for o in all_paid_orders 
+                               if self._parse_datetime(o.get("created_at")) >= today_start)
+            week_revenue = sum(Decimal(str(o.get("total", 0))) for o in all_paid_orders 
+                              if self._parse_datetime(o.get("created_at")) >= week_start)
+            month_revenue = sum(Decimal(str(o.get("total", 0))) for o in all_paid_orders 
+                               if self._parse_datetime(o.get("created_at")) >= month_start)
+            year_revenue = sum(Decimal(str(o.get("total", 0))) for o in all_paid_orders 
+                              if self._parse_datetime(o.get("created_at")) >= year_start)
+            
+            # Order counts - fetch all orders once
+            all_orders = self._get_all_orders()
+            total_orders = len(all_orders)
+            today_orders = sum(1 for o in all_orders 
+                              if self._parse_datetime(o.get("created_at")) >= today_start)
+            week_orders = sum(1 for o in all_orders 
+                             if self._parse_datetime(o.get("created_at")) >= week_start)
+            month_orders = sum(1 for o in all_orders 
+                              if self._parse_datetime(o.get("created_at")) >= month_start)
+            
+            # Order status distribution - use cached orders
+            order_status_dist = {}
+            for order in all_orders:
+                status = order["status"]
+                order_status_dist[status] = order_status_dist.get(status, 0) + 1
+            
+            # Payment method distribution - use cached orders
+            payment_method_dist = {}
+            for order in all_orders:
+                method = order.get("payment_method") or "unknown"
+                payment_method_dist[method] = payment_method_dist.get(method, 0) + 1
+            
+            # User statistics
+            all_users = self._get_all_users()
+            total_users = len(all_users)
+            new_users_today = sum(1 for u in all_users 
+                                 if self._parse_datetime(u.get("created_at")) >= today_start)
+            new_users_week = sum(1 for u in all_users 
+                                if self._parse_datetime(u.get("created_at")) >= week_start)
+            new_users_month = sum(1 for u in all_users 
+                                 if self._parse_datetime(u.get("created_at")) >= month_start)
+            
+            # Product statistics
+            all_products = self._get_all_products()
+            total_products = len(all_products)
+            active_products = sum(1 for p in all_products if p.get("is_active", False))
+            low_stock_products = sum(1 for p in all_products 
+                                     if p.get("is_active", False) and 
+                                     0 < p.get("stock", 0) <= p.get("low_stock_threshold", 5))
+            out_of_stock_products = sum(1 for p in all_products 
+                                       if p.get("is_active", False) and p.get("stock", 0) == 0)
+            
+            result = {
+                "revenue": {
+                    "total": float(total_revenue),
+                    "today": float(today_revenue),
+                    "week": float(week_revenue),
+                    "month": float(month_revenue),
+                    "year": float(year_revenue)
+                },
+                "orders": {
+                    "total": total_orders,
+                    "today": today_orders,
+                    "week": week_orders,
+                    "month": month_orders,
+                    "by_status": order_status_dist
+                },
+                "users": {
+                    "total": total_users,
+                    "new_today": new_users_today,
+                    "new_week": new_users_week,
+                    "new_month": new_users_month
+                },
+                "products": {
+                    "total": total_products,
+                    "active": active_products,
+                    "low_stock": low_stock_products,
+                    "out_of_stock": out_of_stock_products
+                },
+                "payment_methods": payment_method_dist
+            }
+            
+            # Cache the result
+            _set_cache(cache_key, result)
+            return result
+        except Exception as e:
+            # Log error and return empty stats to prevent complete failure
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error fetching dashboard stats: {str(e)}", exc_info=True)
+            # Return empty structure to prevent frontend errors
+            return {
+                "revenue": {
+                    "total": 0.0,
+                    "today": 0.0,
+                    "week": 0.0,
+                    "month": 0.0,
+                    "year": 0.0
+                },
+                "orders": {
+                    "total": 0,
+                    "today": 0,
+                    "week": 0,
+                    "month": 0,
+                    "by_status": {}
+                },
+                "users": {
+                    "total": 0,
+                    "new_today": 0,
+                    "new_week": 0,
+                    "new_month": 0
+                },
+                "products": {
+                    "total": 0,
+                    "active": 0,
+                    "low_stock": 0,
+                    "out_of_stock": 0
+                },
+                "payment_methods": {}
+            }
     
     def get_revenue_stats(self, period: str = "month") -> Dict:
         """
         Get revenue statistics for a period.
+        Uses caching to improve performance.
         
         Args:
             period: Period type (day, week, month, year)
@@ -97,7 +210,13 @@ class AnalyticsService:
         Returns:
             Revenue statistics
         """
-        now = datetime.utcnow()
+        # Check cache first
+        cache_key = _get_cache_key("revenue_stats", period)
+        cached = _get_cached(cache_key)
+        if cached:
+            return cached
+        
+        now = datetime.now(timezone.utc)
         
         if period == "day":
             start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -131,12 +250,21 @@ class AnalyticsService:
         else:
             growth = 0
         
-        return {
+        # Calculate total revenue for period
+        all_paid_orders = self._get_all_paid_orders()
+        period_revenue = sum(Decimal(str(o.get("total", 0))) for o in all_paid_orders 
+                            if self._parse_datetime(o.get("created_at")) >= start)
+        
+        result = {
             "period": period,
-            "total_revenue": float(self._get_revenue_for_period(start, now)),
+            "total_revenue": float(period_revenue),
             "growth_percentage": growth,
             "trend": trend
         }
+        
+        # Cache the result
+        _set_cache(cache_key, result)
+        return result
     
     def get_order_analytics(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict:
         """
@@ -150,7 +278,7 @@ class AnalyticsService:
             Order analytics
         """
         if not end_date:
-            end_date = datetime.utcnow()
+            end_date = datetime.now(timezone.utc)
         if not start_date:
             start_date = end_date - timedelta(days=30)
         
@@ -219,7 +347,7 @@ class AnalyticsService:
         Returns:
             User analytics
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         week_start = today_start - timedelta(days=7)
         month_start = today_start - timedelta(days=30)
@@ -258,7 +386,7 @@ class AnalyticsService:
         Returns:
             List of trend points
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         if period == "day":
             start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -285,7 +413,59 @@ class AnalyticsService:
         else:
             return []
     
-    # Private helper methods
+    # Private helper methods - optimized to fetch data once
+    
+    def _parse_datetime(self, date_str: Optional[str]) -> datetime:
+        """Parse datetime string from various formats. Always returns timezone-aware datetime."""
+        if not date_str:
+            return datetime.min.replace(tzinfo=timezone.utc)
+        try:
+            # Handle ISO format with or without Z
+            if date_str.endswith("Z"):
+                date_str = date_str.replace("Z", "+00:00")
+            elif "+" not in date_str and "T" in date_str:
+                # Assume UTC if no timezone
+                date_str = date_str + "+00:00"
+            dt = datetime.fromisoformat(date_str)
+            # Ensure timezone-aware (default to UTC if naive)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        except (ValueError, AttributeError):
+            # Fallback to current time if parsing fails
+            return datetime.now(timezone.utc)
+    
+    def _get_all_paid_orders(self) -> List[Dict]:
+        """Get all paid orders (cached per request)."""
+        if not hasattr(self, '_cached_paid_orders'):
+            response = self.db.table("orders").select("total,created_at").eq(
+                "payment_status", "paid"
+            ).execute()
+            self._cached_paid_orders = response.data or []
+        return self._cached_paid_orders
+    
+    def _get_all_orders(self) -> List[Dict]:
+        """Get all orders (cached per request)."""
+        if not hasattr(self, '_cached_orders'):
+            response = self.db.table("orders").select("id,status,payment_method,created_at").execute()
+            self._cached_orders = response.data or []
+        return self._cached_orders
+    
+    def _get_all_users(self) -> List[Dict]:
+        """Get all users (cached per request)."""
+        if not hasattr(self, '_cached_users'):
+            response = self.db.table("user_profiles").select("id,created_at").execute()
+            self._cached_users = response.data or []
+        return self._cached_users
+    
+    def _get_all_products(self) -> List[Dict]:
+        """Get all active products (cached per request)."""
+        if not hasattr(self, '_cached_products'):
+            response = self.db.table("products").select("id,is_active,stock,low_stock_threshold").is_(
+                "deleted_at", "null"
+            ).execute()
+            self._cached_products = response.data or []
+        return self._cached_products
     
     def _get_total_revenue(self) -> Decimal:
         """Get total revenue from all paid orders."""
@@ -393,7 +573,7 @@ class AnalyticsService:
         # Group by interval (simplified - would use SQL in production)
         trend_map = {}
         for order in orders:
-            created_at = datetime.fromisoformat(order["created_at"].replace("Z", "+00:00"))
+            created_at = self._parse_datetime(order.get("created_at"))
             
             if interval == "hour":
                 key = created_at.strftime("%Y-%m-%d %H:00")
@@ -406,7 +586,7 @@ class AnalyticsService:
             
             if key not in trend_map:
                 trend_map[key] = Decimal("0")
-            trend_map[key] += Decimal(str(order["total"]))
+            trend_map[key] += Decimal(str(order.get("total", 0)))
         
         # Convert to list
         trend = []
@@ -425,7 +605,7 @@ class AnalyticsService:
         # Group by interval
         trend_map = {}
         for order in orders:
-            created_at = datetime.fromisoformat(order["created_at"].replace("Z", "+00:00"))
+            created_at = self._parse_datetime(order.get("created_at"))
             
             if interval == "hour":
                 key = created_at.strftime("%Y-%m-%d %H:00")
@@ -457,7 +637,7 @@ class AnalyticsService:
         # Group by interval
         trend_map = {}
         for user in (response.data or []):
-            created_at = datetime.fromisoformat(user["created_at"].replace("Z", "+00:00"))
+            created_at = self._parse_datetime(user.get("created_at"))
             
             if interval == "hour":
                 key = created_at.strftime("%Y-%m-%d %H:00")
@@ -598,26 +778,32 @@ class AnalyticsService:
     
     def _get_top_customers_by_revenue(self, limit: int = 10) -> List[Dict]:
         """Get top customers by revenue."""
-        # Get orders with user info
-        response = self.db.table("orders").select(
-            """
-            user_id,
-            total,
-            user_profiles:user_id (
-                name,
-                email
-            )
-            """
-        ).eq("payment_status", "paid").execute()
+        # Get paid orders (user_id and total only)
+        orders_response = self.db.table("orders").select("user_id,total").eq("payment_status", "paid").execute()
+        orders = orders_response.data or []
+        
+        # Get unique user IDs
+        user_ids = list(set(order.get("user_id") for order in orders if order.get("user_id")))
+        
+        # Fetch user profiles for these user IDs
+        user_profiles_map = {}
+        if user_ids:
+            # Fetch user profiles in batches if needed (Supabase has limits)
+            profiles_response = self.db.table("user_profiles").select("id,name").in_("id", user_ids).execute()
+            for profile in (profiles_response.data or []):
+                user_profiles_map[profile["id"]] = {
+                    "name": profile.get("name", "Guest"),
+                    "email": ""  # Email is in auth.users, not user_profiles
+                }
         
         # Aggregate by user
         customer_revenue = {}
-        for order in (response.data or []):
+        for order in orders:
             user_id = order.get("user_id")
             if not user_id:
                 continue
             
-            user_profile = order.get("user_profiles", {})
+            user_profile = user_profiles_map.get(user_id, {})
             
             if user_id not in customer_revenue:
                 customer_revenue[user_id] = {

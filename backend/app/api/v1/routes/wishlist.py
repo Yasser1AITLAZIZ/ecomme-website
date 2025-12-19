@@ -36,12 +36,12 @@ async def get_wishlist(
             compare_at_price,
             currency,
             is_active,
-            deleted_at
-        ),
-        product_images:product_id (
-            image_url,
-            is_primary,
-            order
+            deleted_at,
+            product_images (
+                image_url,
+                is_primary,
+                order
+            )
         )
         """
     ).eq("user_id", current_user.id).execute()
@@ -52,8 +52,8 @@ async def get_wishlist(
         if not product or not product.get("is_active") or product.get("deleted_at"):
             continue
         
-        # Get primary image
-        images = item.get("product_images", [])
+        # Get primary image from nested product_images
+        images = product.get("product_images", []) if isinstance(product, dict) else []
         primary_image = None
         if images:
             primary_images = [img for img in images if img.get("is_primary")]

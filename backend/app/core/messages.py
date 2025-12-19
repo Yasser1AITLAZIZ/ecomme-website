@@ -45,6 +45,18 @@ MESSAGES: Dict[str, Dict[str, str]] = {
         "email_changed_suspended": "Your email has been changed. A confirmation email has been sent to your new email address. You can continue using your account now, but you must verify your new email before your next login.",
         "user_profile_not_found": "User profile not found",
         "failed_to_retrieve_profile": "Failed to retrieve updated profile",
+        
+        # Generic error codes
+        "resource_not_found": "The requested resource was not found",
+        "validation_failed": "The provided data is invalid. Please check your input and try again.",
+        "unauthorized": "You are not authorized to perform this action. Please log in.",
+        "forbidden": "You do not have permission to access this resource.",
+        "conflict": "A conflict occurred. The resource may have been modified by another user.",
+        "insufficient_stock": "Insufficient stock available for this product.",
+        "internal_server_error": "An unexpected error occurred. Please try again later. If the problem persists, contact support.",
+        "order_create_failed": "Failed to create order. Please try again.",
+        "cart_empty": "Your cart is empty. Add items before placing an order.",
+        "payment_failed": "Payment processing failed. Please check your payment method and try again.",
     },
     "fr": {
         # Registration errors
@@ -88,6 +100,18 @@ MESSAGES: Dict[str, Dict[str, str]] = {
         "email_changed_suspended": "Votre e-mail a été modifié. Un e-mail de confirmation a été envoyé à votre nouvelle adresse e-mail. Vous pouvez continuer à utiliser votre compte maintenant, mais vous devez vérifier votre nouvel e-mail avant votre prochaine connexion.",
         "user_profile_not_found": "Profil utilisateur introuvable",
         "failed_to_retrieve_profile": "Échec de la récupération du profil mis à jour",
+        
+        # Generic error codes
+        "resource_not_found": "La ressource demandée est introuvable",
+        "validation_failed": "Les données fournies sont invalides. Veuillez vérifier vos informations et réessayer.",
+        "unauthorized": "Vous n'êtes pas autorisé à effectuer cette action. Veuillez vous connecter.",
+        "forbidden": "Vous n'avez pas la permission d'accéder à cette ressource.",
+        "conflict": "Un conflit s'est produit. La ressource a peut-être été modifiée par un autre utilisateur.",
+        "insufficient_stock": "Stock insuffisant disponible pour ce produit.",
+        "internal_server_error": "Une erreur inattendue s'est produite. Veuillez réessayer plus tard. Si le problème persiste, contactez le support.",
+        "order_create_failed": "Échec de la création de la commande. Veuillez réessayer.",
+        "cart_empty": "Votre panier est vide. Ajoutez des articles avant de passer une commande.",
+        "payment_failed": "Le traitement du paiement a échoué. Veuillez vérifier votre méthode de paiement et réessayer.",
     },
     "ar": {
         # Registration errors
@@ -131,6 +155,18 @@ MESSAGES: Dict[str, Dict[str, str]] = {
         "email_changed_suspended": "تم تغيير بريدك الإلكتروني. تم إرسال بريد إلكتروني للتأكيد إلى عنوان بريدك الإلكتروني الجديد. يمكنك متابعة استخدام حسابك الآن، ولكن يجب عليك التحقق من بريدك الإلكتروني الجديد قبل تسجيل الدخول التالي.",
         "user_profile_not_found": "الملف الشخصي للمستخدم غير موجود",
         "failed_to_retrieve_profile": "فشل في استرداد الملف الشخصي المحدث",
+        
+        # Generic error codes
+        "resource_not_found": "الموارد المطلوبة غير موجودة",
+        "validation_failed": "البيانات المقدمة غير صالحة. يرجى التحقق من معلوماتك والمحاولة مرة أخرى.",
+        "unauthorized": "غير مصرح لك بتنفيذ هذا الإجراء. يرجى تسجيل الدخول.",
+        "forbidden": "ليس لديك إذن للوصول إلى هذا المورد.",
+        "conflict": "حدث تعارض. ربما تم تعديل المورد من قبل مستخدم آخر.",
+        "insufficient_stock": "المخزون غير كافٍ لهذا المنتج.",
+        "internal_server_error": "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى لاحقاً. إذا استمرت المشكلة، اتصل بالدعم.",
+        "order_create_failed": "فشل في إنشاء الطلب. يرجى المحاولة مرة أخرى.",
+        "cart_empty": "سلة التسوق الخاصة بك فارغة. أضف العناصر قبل تقديم الطلب.",
+        "payment_failed": "فشل معالجة الدفع. يرجى التحقق من طريقة الدفع والمحاولة مرة أخرى.",
     },
 }
 

@@ -10,6 +10,10 @@ export interface Product {
   stock: number;
   specifications?: Record<string, string>;
   featured?: boolean;
+  promoPrice?: number;
+  promoStartDate?: string;
+  promoEndDate?: string;
+  isPromoActive?: boolean;
 }
 
 export interface CartItem {
@@ -37,10 +41,16 @@ export interface Address {
 
 export interface Order {
   id: string;
+  orderNumber?: string;
   userId: string;
   items: CartItem[];
   total: number;
+  subtotal?: number;
+  shippingCost?: number;
+  discountAmount?: number;
   shippingAddress: Address;
+  deliveryType?: 'pickup' | 'delivery';
+  paymentMethod?: string;
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   createdAt: string;
   updatedAt: string;

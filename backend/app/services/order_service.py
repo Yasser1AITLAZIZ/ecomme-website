@@ -52,7 +52,8 @@ class OrderService:
         coupon_code: Optional[str] = None,
         notes: Optional[str] = None,
         guest_email: Optional[str] = None,
-        guest_phone: Optional[str] = None
+        guest_phone: Optional[str] = None,
+        delivery_type: str = "delivery"
     ) -> Dict:
         """
         Create a new order.
@@ -68,6 +69,7 @@ class OrderService:
             notes: Order notes (optional)
             guest_email: Guest email (for guest orders)
             guest_phone: Guest phone (for guest orders)
+            delivery_type: Delivery type ('pickup' or 'delivery')
             
         Returns:
             Created order data
@@ -76,14 +78,24 @@ class OrderService:
             NotFoundError: If product or shipping method not found
             ValueError: If insufficient stock or invalid data
         """
+        # Validate delivery_type
+        if delivery_type not in ['pickup', 'delivery']:
+            raise ValueError("delivery_type must be 'pickup' or 'delivery'")
+        
         # Calculate subtotal
         subtotal = sum(
             Decimal(str(item["price"])) * item["quantity"]
             for item in cart_items
         )
         
-        # Get shipping cost
-        shipping_cost = Decimal("0")
+        # Calculate shipping cost based on delivery_type
+        # 150 MAD for delivery, 0 for pickup
+        if delivery_type == 'delivery':
+            shipping_cost = Decimal("150.00")
+        else:  # pickup
+            shipping_cost = Decimal("0.00")
+        
+        # Legacy shipping method support (if provided, use it instead)
         if shipping_method_id:
             shipping_method = self.db.table("shipping_methods").select("*").eq(
                 "id", shipping_method_id
@@ -92,6 +104,7 @@ class OrderService:
             if not shipping_method.data:
                 raise NotFoundError("Shipping method", shipping_method_id)
             
+            # Override shipping cost with method price
             shipping_cost = Decimal(str(shipping_method.data[0]["price"]))
         
         # Calculate discount (if coupon provided)
@@ -154,6 +167,7 @@ class OrderService:
             "payment_method": payment_method,
             "payment_status": "pending",
             "shipping_method_id": shipping_method_id,
+            "delivery_type": delivery_type,
             "shipping_address": shipping_address,
             "billing_address": billing_address,
             "notes": notes
@@ -257,8 +271,7 @@ class OrderService:
             price,
             created_at,
             products:product_id (
-                name,
-                image_url
+                name
             )
             """
         ).eq("order_id", order_id).execute()

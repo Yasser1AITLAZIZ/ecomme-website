@@ -24,7 +24,7 @@ async def list_leads(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     search: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None),
     db: Client = Depends(get_db),
     current_user: UserProfile = Depends(require_admin)
 ):
@@ -35,7 +35,7 @@ async def list_leads(
         page: Page number
         per_page: Items per page
         search: Search term (name or email)
-        status: Filter by status
+        status_filter: Filter by status
         
     Returns:
         List of leads with total count
@@ -45,10 +45,11 @@ async def list_leads(
         
         query = db.table("contact_leads").select("*")
         
-        if status:
-            query = query.eq("status", status)
+        if status_filter:
+            query = query.eq("status", status_filter)
         
         response = query.order("created_at", desc=True).execute()
+        
         all_leads = response.data or []
         
         if search:
@@ -74,6 +75,14 @@ async def list_leads(
             total_pages=total_pages
         )
     except Exception as e:
+        # Check if it's a table not found error
+        error_str = str(e)
+        if "Could not find the table" in error_str and "contact_leads" in error_str:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="The contact_leads table does not exist. Please run the migration file '005_create_leads_table.sql' in your Supabase SQL Editor."
+            )
+        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch leads: {str(e)}"

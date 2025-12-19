@@ -10,7 +10,15 @@
 5. redirection après email de confirmation vers la page login du siteweb
 
 
-6. the users on dashboard of admin are not sychro with the user table in db
+6. resend edge function : not receiving email conform order and needs to have a veirified domain for noreply email
+
+7. create page for exchange iphone
+
+8. follow up email or call with the customer to see if he likes the product
+
+
+
+
 
 
 uvicorn app.main:app --reload

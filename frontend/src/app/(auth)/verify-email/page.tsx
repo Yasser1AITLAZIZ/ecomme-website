@@ -55,7 +55,7 @@ export default function VerifyEmailPage() {
         
         if (response.token && response.user) {
           // Successfully verified and logged in
-          login(response.user, response.token);
+          await login(response.user, response.token);
           setStatus('success');
           setMessage(response.message || 'Email verified successfully! You are now logged in.');
           

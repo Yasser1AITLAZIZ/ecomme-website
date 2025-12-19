@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { ShoppingCart, Menu, X, User } from 'lucide-react';
 import { useCartStore } from '@/lib/store/cartStore';
 import { useAuthStore } from '@/lib/store/authStore';
@@ -20,6 +21,12 @@ export function Header() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
   const { cartSidebarOpen, mobileMenuOpen, toggleCartSidebar, toggleMobileMenu, closeMobileMenu } = useUIStore();
+  const [mounted, setMounted] = useState(false);
+
+  // Set mounted state after client-side hydration to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navLinks = [
     { href: '/', label: t.nav.home },
@@ -107,9 +114,12 @@ export function Header() {
               className="relative p-2 text-gray-300 hover:text-gold-600 transition-colors"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
+              initial={false}
+              suppressHydrationWarning
             >
               <ShoppingCart className="w-6 h-6" />
-              {itemCount > 0 && (
+              {/* Only render badge after mount to prevent hydration mismatch */}
+              {mounted && itemCount > 0 && (
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}

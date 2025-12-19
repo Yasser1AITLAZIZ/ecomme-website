@@ -47,11 +47,13 @@ export function AnimatedTooltip({
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           className={cn('p-1', className)}
+          initial={false}
+          suppressHydrationWarning
         >
           {icon ? (
             <Info className="w-4 h-4 text-gold-600" />
           ) : (
-            <span className="text-gold-600 cursor-help">ℹ️</span>
+            <span className="text-gold-600 cursor-help" suppressHydrationWarning>ℹ️</span>
           )}
         </motion.button>
       )}

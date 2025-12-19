@@ -6,8 +6,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles, Smartphone, Tablet, Headphones } from 'lucide-react';
 import { ScrollReveal } from '@/components/animations/ScrollReveal';
 import { ParallaxSection } from '@/components/animations/ParallaxSection';
-import { FloatingPhone } from '@/components/animations/FloatingPhone';
-import { FloatingCards } from '@/components/animations/FloatingCards';
+import { DynamicProductShowcase } from '@/components/animations/DynamicProductShowcase';
 import { productsApi } from '@/lib/api/products';
 import { useI18n } from '@/lib/i18n/context';
 import type { Product } from '@/types';
@@ -170,10 +169,13 @@ export default function HomePage() {
               </div>
             </ScrollReveal>
 
-            {/* Phone Display with Floating Cards */}
+            {/* Dynamic Product Showcase */}
             <div className="relative hidden lg:block">
-              <FloatingPhone />
-              <FloatingCards />
+              <DynamicProductShowcase 
+                products={featuredProducts
+                  .filter(product => product.category === 'iphone' || product.category === 'android')
+                  .slice(0, 5)} 
+              />
             </div>
           </div>
         </div>

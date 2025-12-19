@@ -182,9 +182,12 @@ class JWKKeyManager:
             raise jwt.InvalidTokenError(f"Invalid token header: {str(e)}")
         
         # Prepare decode options
+        # Disable iat verification to handle clock skew issues
+        # We still verify exp (expiration) which is more important
         decode_options = {
             "verify_signature": True,
             "verify_exp": True,
+            "verify_iat": False,  # Disable iat verification to handle clock skew
             "verify_aud": audience is not None,
             **{**(options or {})}
         }
@@ -196,13 +199,16 @@ class JWKKeyManager:
             if not jwt_secret:
                 raise jwt.InvalidTokenError("HS256 tokens require SUPABASE_JWT_SECRET to be configured")
             
+            # Add leeway for clock skew tolerance (300 seconds = 5 minutes)
+            leeway = 300
             try:
                 decoded = jwt.decode(
                     token,
                     jwt_secret,
                     algorithms=["HS256"],
                     audience=audience,
-                    options=decode_options
+                    options=decode_options,
+                    leeway=leeway
                 )
                 logger.debug("HS256 token verified successfully with shared secret")
                 return decoded
@@ -218,6 +224,11 @@ class JWKKeyManager:
         # Ensure keys are loaded for ES256
         await self._ensure_keys_loaded()
         
+        # Add leeway for clock skew tolerance (300 seconds = 5 minutes)
+        # This handles cases where server clock is slightly behind Supabase clock
+        # Increased to 5 minutes to handle larger clock differences
+        leeway = 300
+        
         # Try to verify with the key specified by kid
         if kid and kid in self._public_keys:
             try:
@@ -227,7 +238,8 @@ class JWKKeyManager:
                     public_key,
                     algorithms=["ES256"],
                     audience=audience,
-                    options=decode_options
+                    options=decode_options,
+                    leeway=leeway
                 )
                 logger.debug(f"Token verified successfully with key {kid}")
                 return decoded
@@ -249,7 +261,8 @@ class JWKKeyManager:
                     public_key,
                     algorithms=["ES256"],
                     audience=audience,
-                    options=decode_options
+                    options=decode_options,
+                    leeway=leeway
                 )
                 logger.info(f"Token verified successfully with key {try_kid} (kid in token: {kid})")
                 return decoded
@@ -278,7 +291,7 @@ class JWKKeyManager:
                 except Exception as e:
                     logger.warning(f"Failed to convert key {new_kid} to PEM: {str(e)}")
             
-            # Try again with refreshed keys
+            # Try again with refreshed keys (with leeway for clock skew)
             for try_kid, public_key in self._public_keys.items():
                 try:
                     decoded = jwt.decode(
@@ -286,7 +299,8 @@ class JWKKeyManager:
                         public_key,
                         algorithms=["ES256"],
                         audience=audience,
-                        options=decode_options
+                        options=decode_options,
+                        leeway=leeway
                     )
                     logger.info(f"Token verified successfully with refreshed key {try_kid}")
                     return decoded

@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { TiltCard } from '@/components/ui/TiltCard';
 import { QuickViewTrigger } from '@/components/product/QuickView';
 import { cn } from '@/lib/utils/cn';
+import { getProductPrice } from '@/lib/utils/productPrice';
 
 interface ProductCardProps {
   product: Product;
@@ -22,6 +23,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
   const { t } = useI18n();
   const addItem = useCartStore((state) => state.addItem);
   const openCartSidebar = useUIStore((state) => state.openCartSidebar);
+  const priceInfo = getProductPrice(product);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -56,9 +58,9 @@ export function ProductCard({ product, className }: ProductCardProps) {
                 {t.products.noImage}
               </div>
             )}
-            {product.originalPrice && (
+            {priceInfo.isOnPromo && (
               <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded z-20">
-                {t.products.sale}
+                {priceInfo.discountPercentage ? `-${priceInfo.discountPercentage}%` : t.products.sale || 'Promo'}
               </div>
             )}
             <QuickViewTrigger product={product} />
@@ -84,11 +86,11 @@ export function ProductCard({ product, className }: ProductCardProps) {
             {/* Price */}
             <div className="flex items-center gap-2 mb-4">
               <span className="text-gold-600 font-bold text-xl">
-                {product.price.toFixed(2)} MAD
+                {priceInfo.currentPrice.toFixed(2)} MAD
               </span>
-              {product.originalPrice && (
+              {priceInfo.originalPrice && (
                 <span className="text-gray-500 text-sm line-through">
-                  {product.originalPrice.toFixed(2)} MAD
+                  {priceInfo.originalPrice.toFixed(2)} MAD
                 </span>
               )}
             </div>
