@@ -23,6 +23,19 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'brmfdagagfpwbqgvcstg.supabase.co',
       },
+      // Production domain
+      {
+        protocol: 'https',
+        hostname: 'www.primostore.ma',
+      },
+      {
+        protocol: 'https',
+        hostname: 'primostore.ma',
+      },
+      {
+        protocol: 'http',
+        hostname: 'backend',
+      },
     ],
     // Optimize images for production
     formats: ['image/avif', 'image/webp'],
@@ -47,6 +60,9 @@ const nextConfig = {
   
   // Optimize fonts
   optimizeFonts: true,
+
+  // Enable standalone output for Docker
+  output: 'standalone',
 }
 
 module.exports = nextConfig

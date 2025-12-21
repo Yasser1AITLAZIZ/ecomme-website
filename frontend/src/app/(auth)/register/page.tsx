@@ -9,8 +9,35 @@ import { ScrollReveal } from '@/components/animations/ScrollReveal';
 import { useI18n } from '@/lib/i18n/context';
 
 export default function RegisterPage() {
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    setTimeout(() => {
+      fetch('http://127.0.0.1:7242/ingest/5a2dc156-7002-40c6-bde1-4df847d61e58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'register/page.tsx:11',message:'RegisterPage component rendering',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'D'})}).catch(()=>{});
+    }, 0);
+  }
+  // #endregion
   const router = useRouter();
-  const { t } = useI18n();
+  let t;
+  try {
+    const i18n = useI18n();
+    t = i18n.t;
+    // #region agent log
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        fetch('http://127.0.0.1:7242/ingest/5a2dc156-7002-40c6-bde1-4df847d61e58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'register/page.tsx:13',message:'useI18n called successfully',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'D'})}).catch(()=>{});
+      }, 0);
+    }
+    // #endregion
+  } catch (err) {
+    // #region agent log
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        fetch('http://127.0.0.1:7242/ingest/5a2dc156-7002-40c6-bde1-4df847d61e58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'register/page.tsx:13',message:'useI18n error',data:{error:err instanceof Error?err.message:String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'D'})}).catch(()=>{});
+      }, 0);
+    }
+    // #endregion
+    throw err;
+  }
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   useEffect(() => {
@@ -19,6 +46,13 @@ export default function RegisterPage() {
     }
   }, [isAuthenticated, router]);
 
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    setTimeout(() => {
+      fetch('http://127.0.0.1:7242/ingest/5a2dc156-7002-40c6-bde1-4df847d61e58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'register/page.tsx:22',message:'About to return JSX',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'D'})}).catch(()=>{});
+    }, 0);
+  }
+  // #endregion
   return (
     <div className="container mx-auto px-4 py-24">
       <div className="max-w-md mx-auto">

@@ -211,7 +211,8 @@ export default function AdminProductEditPage() {
       
       // Remove images field and map frontend fields to backend schema
       // ProductUpdate schema does NOT include: id, sku, slug (these are immutable)
-      const { images: _images, category, featured, originalPrice, id: _id, sku: _sku, slug: _slug, promoPrice, promoStartDate, promoEndDate, isPromoActive, ...restProduct } = product;
+      // Note: sku and slug don't exist in Product type, so we destructure only existing fields
+      const { images: _images, category, featured, originalPrice, id: _id, promoPrice, promoStartDate, promoEndDate, isPromoActive, ...restProduct } = product;
       
       // Map frontend field names to backend schema
       const productData: any = {

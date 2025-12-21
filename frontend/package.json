@@ -26,6 +26,7 @@
     "react-hook-form": "^7.50.0",
     "react-phone-number-input": "^3.3.0",
     "recharts": "^2.15.4",
+    "sharp": "^0.33.0",
     "tailwind-merge": "^2.2.0",
     "three": "^0.160.0",
     "zod": "^3.22.0",

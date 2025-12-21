@@ -36,10 +36,31 @@ export function LoginForm() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
+    // #region agent log
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        fetch('http://127.0.0.1:7242/ingest/5a2dc156-7002-40c6-bde1-4df847d61e58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginForm.tsx:38',message:'Login form submitted',data:{email:data.email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      }, 0);
+    }
+    // #endregion
     try {
       setIsLoading(true);
       setError(null);
+      // #region agent log
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          fetch('http://127.0.0.1:7242/ingest/5a2dc156-7002-40c6-bde1-4df847d61e58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginForm.tsx:42',message:'Calling authApi.login',data:{email:data.email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        }, 0);
+      }
+      // #endregion
       const response = await authApi.login(data.email, data.password);
+      // #region agent log
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          fetch('http://127.0.0.1:7242/ingest/5a2dc156-7002-40c6-bde1-4df847d61e58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginForm.tsx:43',message:'authApi.login response received',data:{hasToken:!!response.token,hasUser:!!response.user},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        }, 0);
+      }
+      // #endregion
       if (!response.token) {
         throw new Error('Login failed: No token received');
       }
@@ -49,6 +70,13 @@ export function LoginForm() {
       const redirect = searchParams.get('redirect') || '/account';
       router.push(redirect);
     } catch (err) {
+      // #region agent log
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          fetch('http://127.0.0.1:7242/ingest/5a2dc156-7002-40c6-bde1-4df847d61e58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginForm.tsx:51',message:'Login form error caught',data:{errorMessage:err instanceof Error?err.message:String(err),errorType:err instanceof Error?'Error':typeof err,hasOriginalError:!!(err as any)?.originalError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        }, 0);
+      }
+      // #endregion
       // Backend now returns translated error messages based on Accept-Language header
       // Use the error message directly from the backend
       if (err instanceof Error) {

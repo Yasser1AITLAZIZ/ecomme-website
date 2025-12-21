@@ -22,7 +22,21 @@ const AlternatingBackground = lazy(() => import('@/components/animations/Alterna
 const CursorTrail = lazy(() => import('@/components/animations/CursorTrail').then(m => ({ default: m.CursorTrail })));
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    setTimeout(() => {
+      fetch('http://127.0.0.1:7242/ingest/5a2dc156-7002-40c6-bde1-4df847d61e58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientLayout.tsx:24',message:'ClientLayout rendering',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
+    }, 0);
+  }
+  // #endregion
   const pathname = usePathname();
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    setTimeout(() => {
+      fetch('http://127.0.0.1:7242/ingest/5a2dc156-7002-40c6-bde1-4df847d61e58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ClientLayout.tsx:26',message:'usePathname called',data:{pathname},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
+    }, 0);
+  }
+  // #endregion
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const loadCartFromBackend = useCartStore((state) => state.loadCartFromBackend);

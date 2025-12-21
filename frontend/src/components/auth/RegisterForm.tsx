@@ -45,11 +45,32 @@ export function RegisterForm() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const onSubmit = async (data: RegisterFormData) => {
+    // #region agent log
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        fetch('http://127.0.0.1:7242/ingest/5a2dc156-7002-40c6-bde1-4df847d61e58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'RegisterForm.tsx:47',message:'Register form submitted',data:{email:data.email,hasName:!!data.name,hasPhone:!!data.phone},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      }, 0);
+    }
+    // #endregion
     try {
       setIsLoading(true);
       setError(null);
       setSuccessMessage(null);
+      // #region agent log
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          fetch('http://127.0.0.1:7242/ingest/5a2dc156-7002-40c6-bde1-4df847d61e58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'RegisterForm.tsx:52',message:'Calling authApi.register',data:{email:data.email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        }, 0);
+      }
+      // #endregion
       const response = await authApi.register(data.email, data.password, data.name, data.phone);
+      // #region agent log
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          fetch('http://127.0.0.1:7242/ingest/5a2dc156-7002-40c6-bde1-4df847d61e58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'RegisterForm.tsx:53',message:'authApi.register response received',data:{hasToken:!!response.token,hasUser:!!response.user,hasMessage:!!response.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        }, 0);
+      }
+      // #endregion
       
       // If token is provided, user is logged in (shouldn't happen with email verification)
       // Otherwise, show verification message
@@ -61,6 +82,13 @@ export function RegisterForm() {
         setSuccessMessage(response.message || 'Please check your email to verify your account before logging in.');
       }
     } catch (err) {
+      // #region agent log
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          fetch('http://127.0.0.1:7242/ingest/5a2dc156-7002-40c6-bde1-4df847d61e58',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'RegisterForm.tsx:63',message:'Register form error caught',data:{errorMessage:err instanceof Error?err.message:String(err),errorType:err instanceof Error?'Error':typeof err,hasOriginalError:!!(err as any)?.originalError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        }, 0);
+      }
+      // #endregion
       // Backend now returns translated error messages based on Accept-Language header
       // Use the error message directly from the backend
       if (err instanceof Error) {

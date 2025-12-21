@@ -79,3 +79,44 @@ Thumbs.db
 *.tmp
 *.temp
 raw-*
+
+# Docker
+.docker/
+docker-compose.override.yml
+*.dockerignore.local
+
+# Production builds
+*.min.js
+*.min.css
+production/
+staging/
+
+# Secrets and credentials
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+credentials/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+dump.sql
+
+# Backup files
+*.bak
+*.backup
+*.old
+backups/
+
+# Docker volumes
+volumes/
+data/
+
+
+.env*
+DOCKER_PRIVATE_REPO.md
+.gitignore
+DOCKER_COMPOSE_GUIDE.md

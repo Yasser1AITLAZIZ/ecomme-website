@@ -57,7 +57,7 @@ export default function AdminLayout({
         try {
           const updatedUser = await authApi.getCurrentUser(token);
           // Update cache
-          if (updatedUser.id) {
+          if (updatedUser.id && updatedUser.role) {
             lastRoleCheck = {
               userId: updatedUser.id,
               role: updatedUser.role,
@@ -76,17 +76,16 @@ export default function AdminLayout({
             return;
           }
         } catch (err) {
-          // If refresh fails, check current user role
-          if (userRole !== 'admin') {
-            router.push('/');
-            return;
-          }
+          // If refresh fails, redirect to home (can't verify admin status)
+          // This is safer than checking userRole which TypeScript has narrowed
+          router.push('/');
+          return;
         }
       } else if (userRole !== 'admin') {
         router.push('/');
         return;
-      } else if (userId) {
-        // Update cache with current user
+      } else if (userId && userRole) {
+        // Update cache with current user (only if role exists)
         lastRoleCheck = {
           userId,
           role: userRole,
