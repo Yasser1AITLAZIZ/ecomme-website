@@ -120,3 +120,6 @@ data/
 DOCKER_PRIVATE_REPO.md
 .gitignore
 DOCKER_COMPOSE_GUIDE.md
+
+
+*.md
