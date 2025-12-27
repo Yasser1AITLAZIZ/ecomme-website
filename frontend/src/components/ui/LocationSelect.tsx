@@ -286,8 +286,11 @@ export const CitySelect = forwardRef<HTMLInputElement, CitySelectProps>(
         setIsLoading(true);
         try {
           let loadedCities: ICity[] = [];
-          if (stateCode) {
-            // Use enhanced function that includes custom cities
+          // For Morocco, always load all cities regardless of stateCode
+          if (countryCode === 'MA') {
+            loadedCities = await getCitiesByCountry(countryCode);
+          } else if (stateCode) {
+            // Use enhanced function that includes custom cities for other countries
             loadedCities = await getCitiesByStateWithName(countryCode, stateCode, resolvedStateName);
           } else {
             // Load all cities by country (fallback)
@@ -339,6 +342,8 @@ export const CitySelect = forwardRef<HTMLInputElement, CitySelectProps>(
     const emptyMessage = t.checkout.noCitiesFound || 'No cities found';
     const placeholder = !countryCode
       ? t.checkout.selectCountryFirst || 'Select a country first'
+      : countryCode === 'MA'
+      ? searchPlaceholder
       : !stateCode && countryCode
       ? t.checkout.selectProvinceFirst || 'Select a province first'
       : shouldUseFreeText

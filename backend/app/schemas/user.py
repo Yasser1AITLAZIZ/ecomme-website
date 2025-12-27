@@ -29,7 +29,7 @@ class UserAddressBase(BaseModel):
     label: str
     street: str
     city: str
-    state: str
+    state: Optional[str] = None  # Optional for backward compatibility
     zip_code: str
     country: str
     is_default: bool = False

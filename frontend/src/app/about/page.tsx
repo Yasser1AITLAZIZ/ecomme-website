@@ -14,7 +14,10 @@ export default function AboutPage() {
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             {t.company.about.title} <span className="text-gold-600">{t.company.about.titleHighlight}</span>
           </h1>
-          <p className="text-xl text-gray-400">{t.company.about.subtitle}</p>
+          <p className="text-xl text-gray-400 mb-2">{t.company.about.subtitle}</p>
+          <p className="text-sm text-gold-600/80">
+            Primo Store by Primo Solutions SARL - Entreprise légale marocaine
+          </p>
         </div>
       </ScrollReveal>
 

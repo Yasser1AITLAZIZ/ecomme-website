@@ -19,7 +19,6 @@ import { useAuthStore } from '@/lib/store/authStore';
 const DynamicBackground = lazy(() => import('@/components/animations/DynamicBackground').then(m => ({ default: m.DynamicBackground })));
 const Particles = lazy(() => import('@/components/animations/Particles').then(m => ({ default: m.Particles })));
 const AlternatingBackground = lazy(() => import('@/components/animations/AlternatingBackground').then(m => ({ default: m.AlternatingBackground })));
-const CursorTrail = lazy(() => import('@/components/animations/CursorTrail').then(m => ({ default: m.CursorTrail })));
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   // #region agent log
@@ -66,6 +65,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   }, [loadCartFromBackend, isAdminRoute]);
 
   const shouldLoadAnimations = !isMobileDevice && !reducedMotion;
+  // Check if we're on products page - disable animations there to keep product descriptions readable
+  const isProductsPage = pathname?.startsWith('/products') ?? false;
+  const shouldLoadLightAnimations = !reducedMotion && !isProductsPage; // Allow on mobile, only check reduced motion, but disable on products page
 
   // For admin routes, skip splash screen, animations, and public layout structure
   if (isAdminRoute) {
@@ -85,19 +87,18 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     <QueryProvider>
       <I18nProvider>
         <ToastProvider>
-          {/* Only load cursor trail on desktop */}
-          {shouldLoadAnimations && (
-            <Suspense fallback={null}>
-              <CursorTrail />
-            </Suspense>
-          )}
           <ScrollProgress />
           <ScrollToTop />
-          {/* Lazy load heavy background animations */}
+          {/* Lazy load heavy background animations (desktop only) */}
           {shouldLoadAnimations && (
             <Suspense fallback={null}>
               <DynamicBackground />
               <Particles />
+            </Suspense>
+          )}
+          {/* Lightweight animations (stars and snow) - enabled on mobile */}
+          {shouldLoadLightAnimations && (
+            <Suspense fallback={null}>
               <AlternatingBackground />
             </Suspense>
           )}

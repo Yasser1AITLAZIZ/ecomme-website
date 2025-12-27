@@ -24,7 +24,7 @@ interface OrderData {
     zipCode?: string;
     country?: string;
   };
-  language?: string; // Language code: 'en', 'fr', or 'ar'
+  language?: string; // Language code: 'en' or 'fr'
 }
 
 // Translations
@@ -87,39 +87,10 @@ const translations: Record<string, Record<string, string>> = {
     team: "L'équipe Primo Store",
     autoEmail: "Cet email a été envoyé automatiquement, merci de ne pas y répondre.",
   },
-  ar: {
-    subject: "تأكيد الطلب - {order_number}",
-    greeting: "مرحباً{name}،",
-    thankYou: "شكراً لك على طلبك!",
-    preparing: "نحن نعد طلبك",
-    preparingDesc: "تم استلام طلبك وهو قيد المعالجة. سنرسل لك بريد إلكتروني آخر بمجرد شحن طلبك.",
-    orderNumber: "رقم الطلب",
-    orderDetails: "تفاصيل الطلب",
-    product: "المنتج",
-    quantity: "الكمية",
-    unitPrice: "السعر الوحدة",
-    total: "المجموع",
-    summary: "الملخص",
-    subtotal: "المجموع",
-    shipping: "الشحن",
-    discount: "الخصم",
-    totalAmount: "الإجمالي",
-    deliveryInfo: "معلومات التوصيل",
-    delivery: "توصيل",
-    pickup: "استلام من المتجر",
-    shippingAddress: "عنوان التوصيل",
-    paymentMethod: "طريقة الدفع",
-    cod: "الدفع عند الاستلام",
-    emailSent: "ستتلقى بريد إلكتروني للتأكيد بمجرد شحن طلبك.",
-    questions: "إذا كان لديك أي أسئلة حول طلبك، يرجى عدم التردد في الاتصال بنا.",
-    regards: "مع أطيب التحيات،",
-    team: "فريق Primo Store",
-    autoEmail: "هذا بريد إلكتروني تلقائي، يرجى عدم الرد.",
-  },
 };
 
 function getTranslation(lang: string, key: string, params?: Record<string, string>): string {
-  const langCode = lang && ['en', 'fr', 'ar'].includes(lang) ? lang : 'fr';
+  const langCode = lang && ['en', 'fr'].includes(lang) ? lang : 'fr';
   let text = translations[langCode]?.[key] || translations['fr'][key] || key;
   
   if (params) {
@@ -337,10 +308,9 @@ Deno.serve(async (req: Request) => {
 
 function generateOrderConfirmationEmail(order: OrderData, lang: string): string {
   const t = (key: string, params?: Record<string, string>) => getTranslation(lang, key, params);
-  const isRTL = lang === 'ar';
-  const dir = isRTL ? 'rtl' : 'ltr';
-  const textAlign = isRTL ? 'right' : 'left';
-  const fontFamily = isRTL ? 'Arial, "Segoe UI", Tahoma, sans-serif' : 'Arial, sans-serif';
+  const dir = 'ltr';
+  const textAlign = 'left';
+  const fontFamily = 'Arial, sans-serif';
 
   const deliveryInfo = order.delivery_type === "pickup" 
     ? `<p style="margin: 10px 0; color: #333;"><strong>${t("deliveryMethod")}:</strong> ${t("pickup")}</p>`

@@ -9,8 +9,9 @@ import { useAuthStore } from '@/lib/store/authStore';
 import { authApi } from '@/lib/api/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { PhoneInput } from '@/components/ui/PhoneInput';
+import { SimplePhoneInput } from '@/components/ui/SimplePhoneInput';
 import { useI18n } from '@/lib/i18n/context';
+import { extractErrorMessage } from '@/lib/utils/errorHandler';
 import { phoneSchema } from '@/lib/validations/phone';
 
 export function RegisterForm() {
@@ -90,12 +91,9 @@ export function RegisterForm() {
       }
       // #endregion
       // Backend now returns translated error messages based on Accept-Language header
-      // Use the error message directly from the backend
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Registration failed. Please try again.');
-      }
+      // Use extractErrorMessage to get user-friendly translated message
+      const errorMessage = extractErrorMessage(err);
+      setError(errorMessage || t.auth.login.loginFailed || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -118,7 +116,7 @@ export function RegisterForm() {
       <Input
         label={t.auth.register.name}
         type="text"
-        placeholder="Youssef Alami"
+        placeholder="Nom et prénom"
         error={errors.name?.message}
         {...register('name')}
       />
@@ -135,9 +133,9 @@ export function RegisterForm() {
         name="phone"
         control={control}
         render={({ field }) => (
-          <PhoneInput
+          <SimplePhoneInput
             label={t.checkout.phone}
-            placeholder="+212 6XX XXX XXX"
+            placeholder="6XX XXX XXX"
             error={errors.phone?.message}
             value={field.value}
             onChange={field.onChange}

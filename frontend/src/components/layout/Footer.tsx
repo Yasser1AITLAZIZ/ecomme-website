@@ -21,11 +21,11 @@ export function Footer() {
       { label: t.footer.links.contact, href: '/contact' },
       { label: t.footer.links.shipping, href: '/shipping' },
       { label: t.footer.links.returns, href: '/returns' },
+      { label: (t.footer.links as any).tradeIn || 'Trade-In', href: '/trade-in' },
     ],
     account: [
       { label: t.footer.links.myAccount, href: '/account' },
       { label: t.footer.links.orderHistory, href: '/account/orders' },
-      { label: t.footer.links.wishlist, href: '/wishlist' },
     ],
   };
 
@@ -38,33 +38,42 @@ export function Footer() {
             <h3 className="text-xl font-bold bg-gradient-to-r from-gold-500 to-gold-700 bg-clip-text text-transparent mb-4">
               Primo Store
             </h3>
-            <p className="text-gray-400 text-sm mb-4">
+            <p className="text-gray-400 text-sm mb-2">
               {t.footer.brandDescription}
+            </p>
+            <p className="text-gray-500 text-xs mb-4">
+              Primo Store by Primo Solutions SARL
             </p>
             <div className={cn('flex gap-4', isRTL && 'flex-row-reverse')}>
               <a
-                href="#"
+                href="https://www.facebook.com"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-gray-400 hover:text-gold-600 transition-colors"
                 aria-label="Facebook"
               >
                 <Facebook className="w-5 h-5" />
               </a>
               <a
-                href="#"
+                href="https://www.twitter.com"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-gray-400 hover:text-gold-600 transition-colors"
                 aria-label="Twitter"
               >
                 <Twitter className="w-5 h-5" />
               </a>
               <a
-                href="#"
+                href="https://www.instagram.com"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-gray-400 hover:text-gold-600 transition-colors"
                 aria-label="Instagram"
               >
                 <Instagram className="w-5 h-5" />
               </a>
               <a
-                href="#"
+                href="mailto:primostore@primosolutions.ma"
                 className="text-gray-400 hover:text-gold-600 transition-colors"
                 aria-label="Email"
               >

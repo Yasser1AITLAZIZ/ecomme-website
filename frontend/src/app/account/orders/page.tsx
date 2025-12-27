@@ -129,7 +129,7 @@ export default function OrdersPage() {
                         <Calendar className="w-4 h-4" />
                         <span>
                           {new Date(order.createdAt).toLocaleDateString(
-                            language === 'ar' ? 'ar-MA' : language === 'fr' ? 'fr-FR' : 'en-US',
+                            language === 'fr' ? 'fr-FR' : 'en-US',
                             {
                               year: 'numeric',
                               month: 'long',

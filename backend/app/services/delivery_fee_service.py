@@ -133,4 +133,127 @@ class DeliveryFeeService:
             "min_fee": settings.get("min_fee", 5.0),
             "max_fee": settings.get("max_fee", 50.0)
         }
+    
+    def get_city_shipping_fee_settings(self) -> Dict:
+        """
+        Get city-based shipping fee settings from system_settings.
+        
+        Returns:
+            City shipping fee configuration dict with city names as keys
+        """
+        try:
+            response = self.db.table("system_settings").select("*").eq(
+                "key", "city_shipping_fees"
+            ).execute()
+            
+            if response.data and len(response.data) > 0:
+                return response.data[0].get("value", {})
+            
+            # Return default settings if not configured
+            return {
+                "default": 150.0
+            }
+        except Exception:
+            # Return default settings on error
+            return {
+                "default": 150.0
+            }
+    
+    def normalize_city_name(self, city: str) -> str:
+        """
+        Normalize city name for lookup (lowercase, trim, remove accents).
+        
+        Args:
+            city: City name to normalize
+            
+        Returns:
+            Normalized city name
+        """
+        if not city:
+            return ""
+        
+        # Convert to lowercase and trim
+        normalized = city.lower().strip()
+        
+        # Remove common diacritics (for French/Arabic city names)
+        # This is a simple approach - for production, consider using unidecode
+        normalized = normalized.replace('é', 'e').replace('è', 'e').replace('ê', 'e')
+        normalized = normalized.replace('à', 'a').replace('â', 'a')
+        normalized = normalized.replace('î', 'i').replace('ï', 'i')
+        normalized = normalized.replace('ô', 'o').replace('ö', 'o')
+        normalized = normalized.replace('ù', 'u').replace('û', 'u').replace('ü', 'u')
+        normalized = normalized.replace('ç', 'c')
+        
+        return normalized
+    
+    def get_city_shipping_fee(self, city: str) -> Optional[float]:
+        """
+        Get shipping fee for a specific city.
+        
+        Args:
+            city: City name
+            
+        Returns:
+            Shipping fee for the city, or None if city not found (use default)
+        """
+        if not city:
+            return None
+        
+        city_settings = self.get_city_shipping_fee_settings()
+        normalized_city = self.normalize_city_name(city)
+        
+        # Check if city has specific fee
+        if normalized_city in city_settings:
+            fee = city_settings[normalized_city]
+            if isinstance(fee, (int, float)):
+                return float(fee)
+        
+        return None
+    
+    def calculate_delivery_fee_by_city(self, city: str, order_total: float) -> Dict:
+        """
+        Calculate delivery fee based on city and order total.
+        First checks city-specific fees, then applies order total logic if needed.
+        
+        Args:
+            city: City name
+            order_total: Total order amount (subtotal)
+            
+        Returns:
+            Dict with fee, is_free, and tier_info
+        """
+        # First, check if city has specific fee
+        city_fee = self.get_city_shipping_fee(city)
+        
+        if city_fee is not None:
+            # City has specific fee (can be 0 for free shipping)
+            return {
+                "fee": city_fee,
+                "is_free": city_fee == 0.0,
+                "tier_info": {
+                    "reason": "city_specific",
+                    "city": city,
+                    "fee": city_fee
+                }
+            }
+        
+        # If no city-specific fee, use default from city settings or fallback to order total logic
+        city_settings = self.get_city_shipping_fee_settings()
+        default_city_fee = city_settings.get("default", None)
+        
+        if default_city_fee is not None:
+            # Use default city fee
+            default_fee = float(default_city_fee)
+            return {
+                "fee": default_fee,
+                "is_free": default_fee == 0.0,
+                "tier_info": {
+                    "reason": "city_default",
+                    "city": city,
+                    "fee": default_fee
+                }
+            }
+        
+        # Fallback to order total-based calculation
+        return self.calculate_delivery_fee(order_total)
 

@@ -15,6 +15,7 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
 from app.api.v1.deps import get_db, get_current_user, get_current_user_optional, validate_uuid_param, get_language
+from app.core.i18n import t
 from app.core.permissions import require_admin
 from app.core.security import validate_uuid
 from app.schemas.order import Order, OrderCreate, OrderUpdate, OrderStatusUpdate, OrderItem, RecentOrder
@@ -199,7 +200,8 @@ async def get_order(
     request: Request,
     order_id: str = Path(..., description="Order ID"),
     db: Client = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(get_current_user),
+    lang: str = Depends(get_language)
 ):
     """
     Get order details.
@@ -211,7 +213,7 @@ async def get_order(
     if not validate_uuid(order_id):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Invalid UUID format"
+            detail=t("validation_failed", lang)
         )
     
     order_service = OrderService(db)
@@ -289,7 +291,7 @@ async def get_order(
             items=items
         )
     except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=t("resource_not_found", lang))
 
 
 @router.get("/{order_id}/invoice/pdf")
@@ -311,7 +313,7 @@ async def get_order_invoice_pdf(
     if not validate_uuid(order_id):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Invalid UUID format"
+            detail=t("validation_failed", lang)
         )
     
     order_service = OrderService(db)
@@ -390,34 +392,12 @@ async def get_order_invoice_pdf(
                 "total_amount": "Total Amount",
                 "thank_you": "Thank you for your purchase!",
                 "primo_store": "Primo Store"
-            },
-            "ar": {
-                "order_confirmation": "إيصال الطلب",
-                "order_number": "رقم الطلب",
-                "date": "التاريخ",
-                "shipping_address": "عنوان التوصيل",
-                "delivery_method": "طريقة التوصيل",
-                "delivery": "توصيل",
-                "pickup": "استلام من المتجر",
-                "payment_method": "طريقة الدفع",
-                "cod": "الدفع عند الاستلام",
-                "items": "العناصر",
-                "product": "المنتج",
-                "quantity": "الكمية",
-                "unit_price": "السعر الوحدة",
-                "total": "المجموع",
-                "subtotal": "المجموع",
-                "shipping": "الشحن",
-                "discount": "الخصم",
-                "total_amount": "الإجمالي",
-                "thank_you": "شكراً لك على شرائك!",
-                "primo_store": "Primo Store"
             }
         }
         
         # Get translations based on language
         t = translations.get(lang, translations["fr"])
-        is_rtl = lang == "ar"
+        is_rtl = False
         
         # Create PDF
         buffer = BytesIO()
@@ -668,11 +648,9 @@ async def get_order_invoice_pdf(
         buffer.seek(0)
         
         # Return PDF as streaming response
-        # Use "bon_commande" for French, "order_confirmation" for English, "order" for Arabic
+        # Use "bon_commande" for French, "order_confirmation" for English
         if lang == "fr":
             filename_prefix = "bon_commande"
-        elif lang == "ar":
-            filename_prefix = "order"
         else:
             filename_prefix = "order_confirmation"
         filename = f"{filename_prefix}_{order['order_number']}.pdf"
@@ -685,12 +663,12 @@ async def get_order_invoice_pdf(
         )
         
     except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=t("resource_not_found", lang))
     except Exception as e:
         logger.error(f"Error generating PDF invoice: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate PDF invoice"
+            detail=t("internal_server_error", lang)
         )
 
 
@@ -730,7 +708,7 @@ async def create_order(
         if not cart_items:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cart is empty"
+                detail=t("cart_empty", lang)
             )
         
         # Convert cart items to order items format
@@ -948,19 +926,19 @@ async def create_order(
         logger.error(f"Order creation failed - Not Found: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
-            detail=f"Resource not found: {str(e)}"
+            detail=t("resource_not_found", lang)
         )
     except ValueError as e:
         logger.error(f"Order creation failed - Validation Error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
-            detail=f"Invalid request: {str(e)}"
+            detail=t("validation_failed", lang)
         )
     except Exception as e:
         logger.error(f"Order creation failed - Unexpected Error: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="La commande a échoué. Veuillez réessayer."
+            detail=t("order_create_failed", lang)
         )
 
 
@@ -971,7 +949,8 @@ async def update_order_status(
     order_id: str = Path(..., description="Order ID"),
     status_update: OrderStatusUpdate = None,
     db: Client = Depends(get_db),
-    current_user = Depends(require_admin)
+    current_user = Depends(require_admin),
+    lang: str = Depends(get_language)
 ):
     """
     Update order status (Admin only).
@@ -983,7 +962,7 @@ async def update_order_status(
     if not validate_uuid(order_id):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Invalid UUID format"
+            detail=t("validation_failed", lang)
         )
     
     order_service = OrderService(db)
@@ -1062,5 +1041,5 @@ async def update_order_status(
             items=items
         )
     except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=t("resource_not_found", lang))
 

@@ -45,7 +45,9 @@ from app.api.v1.routes import (
     shipping,
     images,
     contact,
-    delivery_fees
+    delivery_fees,
+    trade_in,
+    pre_order
 )
 
 # Include admin routers
@@ -74,6 +76,8 @@ app.include_router(shipping.router, prefix=f"/api/{settings.API_VERSION}")
 app.include_router(images.router, prefix=f"/api/{settings.API_VERSION}")
 app.include_router(contact.router, prefix=f"/api/{settings.API_VERSION}")
 app.include_router(delivery_fees.router, prefix=f"/api/{settings.API_VERSION}")
+app.include_router(trade_in.router, prefix=f"/api/{settings.API_VERSION}")
+app.include_router(pre_order.router, prefix=f"/api/{settings.API_VERSION}")
 
 # Include admin routers
 app.include_router(admin_analytics.router, prefix=f"/api/{settings.API_VERSION}")

@@ -39,7 +39,7 @@ export function ForgotPasswordForm() {
       await authApi.forgotPassword(data.email);
       setSuccess(true);
     } catch (err) {
-      let errorMessage = 'Failed to send password reset email. Please try again.';
+      let errorMessage: string = t.auth.forgotPassword.errorMessage;
       
       if (err instanceof Error) {
         errorMessage = err.message;
@@ -55,11 +55,11 @@ export function ForgotPasswordForm() {
     return (
       <div className="space-y-6">
         <div className="p-4 bg-green-500/10 border border-green-500 rounded-lg text-green-500 text-sm">
-          If an account with that email exists, a password reset link has been sent to your email address.
+          {t.auth.forgotPassword.successMessage}
         </div>
         <div className="text-center">
           <Link href="/login" className="text-gold-600 hover:text-gold-500 transition-colors">
-            Back to Login
+            {t.auth.forgotPassword.backToLogin}
           </Link>
         </div>
       </div>
@@ -76,7 +76,7 @@ export function ForgotPasswordForm() {
 
       <div>
         <p className="text-gray-400 text-sm mb-4">
-          Enter your email address and we'll send you a link to reset your password.
+          {t.auth.forgotPassword.description}
         </p>
       </div>
 
@@ -89,12 +89,12 @@ export function ForgotPasswordForm() {
       />
 
       <Button type="submit" variant="primary" className="w-full" isLoading={isLoading}>
-        Send Reset Link
+        {t.auth.forgotPassword.sendButton}
       </Button>
 
       <div className="text-center">
         <Link href="/login" className="text-sm text-gray-400 hover:text-gold-600 transition-colors">
-          Back to Login
+          {t.auth.forgotPassword.backToLogin}
         </Link>
       </div>
     </form>

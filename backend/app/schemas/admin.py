@@ -338,6 +338,66 @@ class ContactLeadConvert(BaseModel):
     role: str = "customer"
 
 
+# iPhone Trade-In Schemas
+
+class TradeInRequestCreate(BaseModel):
+    """iPhone trade-in request creation schema."""
+    name: str
+    email: EmailStr
+    phone: Optional[str] = None
+    iphone_model: str
+    storage_capacity: str
+    color: Optional[str] = None
+    condition: str
+    imei: Optional[str] = None
+    photos_urls: Optional[List[str]] = []
+    notes: Optional[str] = None
+
+
+class TradeInRequestUpdate(BaseModel):
+    """Trade-in request update schema."""
+    status: Optional[str] = None
+    estimated_value: Optional[Decimal] = None
+    notes: Optional[str] = None
+
+
+class TradeInRequest(BaseModel):
+    """Trade-in request schema."""
+    id: str
+    name: str
+    email: str
+    phone: Optional[str] = None
+    iphone_model: str
+    storage_capacity: str
+    color: Optional[str] = None
+    condition: str
+    imei: Optional[str] = None
+    photos_urls: Optional[List[str]] = []
+    notes: Optional[str] = None
+    estimated_value: Optional[Decimal] = None
+    status: str
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None,
+            Decimal: lambda v: float(v) if v else None
+        }
+
+
+class TradeInRequestListResponse(BaseModel):
+    """Trade-in request list response with pagination."""
+    requests: List[TradeInRequest]
+    total: int
+    page: int
+    per_page: int
+    total_pages: int
+
+
 # Notification Schemas
 
 class Notification(BaseModel):

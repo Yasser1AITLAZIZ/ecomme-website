@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/authStore';
 import { authApi } from '@/lib/api/auth';
+import { useI18n } from '@/lib/i18n/context';
 
 export default function AdminPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const { user, isAuthenticated, login, token } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +97,7 @@ export default function AdminPage() {
 
   return (
     <div className="flex items-center justify-center h-screen bg-black-900">
-      <div className="text-gray-400">Redirecting to dashboard...</div>
+      <div className="text-gray-400">{t.common.redirectingToDashboard}</div>
     </div>
   );
 }

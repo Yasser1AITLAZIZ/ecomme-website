@@ -1,7 +1,8 @@
 """Cart routes."""
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Header
 from typing import List, Optional
-from app.api.v1.deps import get_db, get_current_user, get_current_user_optional, validate_uuid_param
+from app.api.v1.deps import get_db, get_current_user, get_current_user_optional, validate_uuid_param, get_language
+from app.core.i18n import t
 from app.schemas.cart import (
     CartItem,
     CartItemCreate,
@@ -33,7 +34,8 @@ async def get_cart(
     request: Request,
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user_optional),
-    guest_session_id: Optional[str] = Depends(get_guest_session_id)
+    guest_session_id: Optional[str] = Depends(get_guest_session_id),
+    lang: str = Depends(get_language)
 ):
     """
     Get user's or guest's cart.
@@ -44,7 +46,7 @@ async def get_cart(
     if not current_user and not guest_session_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Either authentication or X-Guest-Session-Id header is required"
+            detail=t("unauthorized", lang)
         )
     
     cart_service = CartService(db)
@@ -86,6 +88,7 @@ async def add_cart_item(
     item: CartItemCreate,
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user_optional),
+    lang: str = Depends(get_language),
     guest_session_id: Optional[str] = Depends(get_guest_session_id)
 ):
     """
@@ -97,7 +100,7 @@ async def add_cart_item(
     if not current_user and not guest_session_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Either authentication or X-Guest-Session-Id header is required"
+            detail=t("unauthorized", lang)
         )
     
     cart_service = CartService(db)
@@ -131,9 +134,9 @@ async def add_cart_item(
             product_image=full_item.get("product_image")
         )
     except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=t("resource_not_found", lang))
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=t("validation_failed", lang))
 
 
 @router.put("/items/{item_id}", response_model=CartItem)
@@ -143,6 +146,7 @@ async def update_cart_item(
     item_id: str = Depends(validate_uuid_param),
     item_update: CartItemUpdate = None,
     db: Client = Depends(get_db),
+    lang: str = Depends(get_language),
     current_user = Depends(get_current_user_optional),
     guest_session_id: Optional[str] = Depends(get_guest_session_id)
 ):
@@ -155,7 +159,7 @@ async def update_cart_item(
     if not current_user and not guest_session_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Either authentication or X-Guest-Session-Id header is required"
+            detail=t("unauthorized", lang)
         )
     
     cart_service = CartService(db)
@@ -172,7 +176,7 @@ async def update_cart_item(
             # Item was removed (quantity was 0)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Cart item removed"
+                detail=t("resource_not_found", lang)
             )
         
         # Get full cart item with product details
@@ -196,9 +200,9 @@ async def update_cart_item(
             product_image=full_item.get("product_image")
         )
     except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=t("resource_not_found", lang))
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=t("validation_failed", lang))
 
 
 @router.delete("/items/{item_id}", status_code=204)
@@ -208,6 +212,7 @@ async def remove_cart_item(
     item_id: str = Depends(validate_uuid_param),
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user_optional),
+    lang: str = Depends(get_language),
     guest_session_id: Optional[str] = Depends(get_guest_session_id)
 ):
     """
@@ -216,7 +221,7 @@ async def remove_cart_item(
     if not current_user and not guest_session_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Either authentication or X-Guest-Session-Id header is required"
+            detail=t("unauthorized", lang)
         )
     
     cart_service = CartService(db)
@@ -228,7 +233,7 @@ async def remove_cart_item(
             guest_session_id=guest_session_id
         )
     except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=t("resource_not_found", lang))
 
 
 @router.post("/sync", response_model=CartResponse)
@@ -238,6 +243,7 @@ async def sync_cart(
     sync_request: CartSyncRequest,
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user_optional),
+    lang: str = Depends(get_language),
     guest_session_id: Optional[str] = Depends(get_guest_session_id)
 ):
     """
@@ -249,7 +255,7 @@ async def sync_cart(
     if not current_user and not guest_session_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Either authentication or X-Guest-Session-Id header is required"
+            detail=t("unauthorized", lang)
         )
     
     cart_service = CartService(db)
@@ -307,7 +313,8 @@ async def clear_cart(
     request: Request,
     db: Client = Depends(get_db),
     current_user = Depends(get_current_user_optional),
-    guest_session_id: Optional[str] = Depends(get_guest_session_id)
+    guest_session_id: Optional[str] = Depends(get_guest_session_id),
+    lang: str = Depends(get_language)
 ):
     """
     Clear all items from cart.
@@ -315,7 +322,7 @@ async def clear_cart(
     if not current_user and not guest_session_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Either authentication or X-Guest-Session-Id header is required"
+            detail=t("unauthorized", lang)
         )
     
     cart_service = CartService(db)
@@ -331,7 +338,8 @@ async def merge_cart(
     request: Request,
     merge_request: CartMergeRequest,
     db: Client = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(get_current_user),
+    lang: str = Depends(get_language)
 ):
     """
     Merge guest cart into user cart (authenticated only).
@@ -372,5 +380,5 @@ async def merge_cart(
             total_price=totals["total_price"]
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=t("validation_failed", lang))
 

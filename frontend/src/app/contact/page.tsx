@@ -14,6 +14,7 @@ import { optionalPhoneSchema } from '@/lib/validations/phone';
 import { cn } from '@/lib/utils/cn';
 import { Mail, Phone, MapPin, Clock, Send } from 'lucide-react';
 import { contactApi } from '@/lib/api/contact';
+import { extractErrorMessage } from '@/lib/utils/errorHandler';
 
 const contactSchema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -57,8 +58,9 @@ export default function ContactPage() {
       });
       reset();
     } catch (error: any) {
+      const errorMessage = extractErrorMessage(error);
       showToast({
-        message: error.response?.data?.detail || 'Failed to submit contact form. Please try again.',
+        message: errorMessage || t.company.contact.form.error || 'Failed to submit contact form. Please try again.',
         type: 'error',
       });
     } finally {
@@ -161,22 +163,24 @@ export default function ContactPage() {
                   <Phone className="w-6 h-6 text-gold-600 mt-1 flex-shrink-0" />
                   <div>
                     <p className="font-semibold mb-1">{t.company.contact.info.phone}</p>
-                    <p className="text-gray-400">+212 XXX XXX XXX</p>
+                    <p className="text-gray-400">+212 6 60 66 44 36</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
                   <Mail className="w-6 h-6 text-gold-600 mt-1 flex-shrink-0" />
                   <div>
                     <p className="font-semibold mb-1">{t.company.contact.info.email}</p>
-                    <p className="text-gray-400">contact@primostore.com</p>
+                    <a href="mailto:primostore@primosolutions.ma" className="text-gray-400 hover:text-gold-600 transition-colors">
+                      primostore@primosolutions.ma
+                    </a>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
                   <Clock className="w-6 h-6 text-gold-600 mt-1 flex-shrink-0" />
                   <div>
                     <p className="font-semibold mb-1">{t.company.contact.info.hours}</p>
-                    <p className="text-gray-400">Monday - Friday: 9:00 AM - 8:00 PM</p>
-                    <p className="text-gray-400">Saturday - Sunday: 10:00 AM - 6:00 PM</p>
+                    <p className="text-gray-400">Monday - Friday: 11:00 AM - 10:00 PM</p>
+                    <p className="text-gray-400">Saturday - Sunday: 12:00 PM - 9:00 PM</p>
                   </div>
                 </div>
               </div>

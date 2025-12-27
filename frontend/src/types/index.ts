@@ -33,7 +33,7 @@ export interface User {
 export interface Address {
   street: string;
   city: string;
-  state: string;
+  state?: string; // Optional for backward compatibility
   zip_code?: string;
   zipCode?: string; // Keep for backward compatibility
   country: string;

@@ -15,8 +15,7 @@ import { AnimatedGradientText } from '@/components/ui/AnimatedGradientText';
 import { MagneticButton } from '@/components/ui/MagneticButton';
 import { AnimatedTooltip } from '@/components/ui/AnimatedTooltip';
 import { FeaturedProductsMerged } from '@/components/ui/FeaturedProductsMerged';
-import { WhyChooseUs } from '@/components/ui/WhyChooseUs';
-import { PaymentAndTrust } from '@/components/ui/PaymentAndTrust';
+import { PrioritiesAndPayment } from '@/components/ui/PrioritiesAndPayment';
 import { StoreLocation } from '@/components/ui/StoreLocation';
 import { cn } from '@/lib/utils/cn';
 
@@ -123,13 +122,6 @@ export default function HomePage() {
                       </Button>
                     </Link>
                   </MagneticButton>
-                  <MagneticButton>
-                    <Link href="/products?category=iphone">
-                      <Button variant="outline" size="lg">
-                        {t.home.hero.exploreIphone}
-                      </Button>
-                    </Link>
-                  </MagneticButton>
                 </div>
 
                 {/* Integrated Quick Category Navigation */}
@@ -199,11 +191,8 @@ export default function HomePage() {
       {/* Merged Featured Products Section */}
       <FeaturedProductsMerged products={featuredProducts} loading={loading} />
 
-      {/* Merged Why Choose Us (Priorities + Stats) */}
-      <WhyChooseUs />
-
-      {/* Merged Payment & Trust (Payment + Testimonials) */}
-      <PaymentAndTrust />
+      {/* Priorities and Payment Section */}
+      <PrioritiesAndPayment />
 
       {/* Store Location Section */}
       <StoreLocation />

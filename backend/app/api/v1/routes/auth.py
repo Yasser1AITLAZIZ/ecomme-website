@@ -120,7 +120,8 @@ async def register(
     
     # Get the frontend URL for redirect (from settings or default)
     frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
-    redirect_to = f"{frontend_url}/verify-email"
+    # Use auth callback route to capture token from Supabase URL
+    redirect_to = f"{frontend_url}/auth/callback"
     
     try:
         loop = asyncio.get_event_loop()
@@ -715,10 +716,18 @@ async def reset_password(
     Reset user password using reset token.
     
     This endpoint verifies the reset token and updates the user's password
-    using Supabase Admin API.
+    using Supabase Auth API. The token can be either:
+    - A Supabase access_token from recovery session
+    - A JWT token that can be decoded
     """
     try:
-        # Verify the token by decoding it
+        import asyncio
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        user_id = None
+        
+        # Try to decode the token as JWT first
         try:
             key_manager = get_jwt_key_manager()
             decoded_token = await key_manager.verify_token(
@@ -726,17 +735,49 @@ async def reset_password(
                 audience="authenticated"
             )
             user_id = decoded_token.get("sub")
-            if not user_id:
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+            # Token is not a valid JWT with "authenticated" audience
+            # It might be a Supabase recovery session token
+            # We'll verify it using Supabase Auth API
+            pass
+        
+        # If we couldn't decode as JWT, try to verify with Supabase Auth API
+        if not user_id:
+            try:
+                # Use Supabase Auth API to verify the token and get user info
+                verify_url = f"{settings.SUPABASE_URL}/auth/v1/user"
+                headers = {
+                    "apikey": settings.SUPABASE_ANON_KEY,
+                    "Authorization": f"Bearer {request_data.token}",
+                    "Content-Type": "application/json"
+                }
+                
+                async with httpx.AsyncClient() as client:
+                    verify_response = await client.get(
+                        verify_url,
+                        headers=headers,
+                        timeout=10.0
+                    )
+                    
+                    if verify_response.status_code == 200:
+                        user_data = verify_response.json()
+                        user_id = user_data.get("id")
+                    else:
+                        # Token is invalid or expired
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=t("invalid_reset_token", lang)
+                        )
+            except HTTPException:
+                raise
+            except Exception as verify_error:
+                logger.error(f"Token verification error: {str(verify_error)}")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=t("invalid_reset_token", lang)
                 )
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=t("reset_token_expired", lang)
-            )
-        except jwt.InvalidTokenError:
+        
+        if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=t("invalid_reset_token", lang)
@@ -744,7 +785,7 @@ async def reset_password(
         
         # Update password using admin API
         admin_api_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{user_id}"
-        headers = {
+        admin_headers = {
             "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
             "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
             "Content-Type": "application/json"
@@ -753,7 +794,7 @@ async def reset_password(
         async with httpx.AsyncClient() as client:
             update_response = await client.put(
                 admin_api_url,
-                headers=headers,
+                headers=admin_headers,
                 json={"password": request_data.password},
                 timeout=10.0
             )
@@ -761,6 +802,18 @@ async def reset_password(
             if update_response.status_code not in [200, 201]:
                 error_data = update_response.json() if update_response.headers.get("content-type", "").startswith("application/json") else {}
                 error_msg = error_data.get("msg", error_data.get("message", update_response.text))
+                logger.error(f"Password update failed: {error_msg}")
+                
+                # Check if it's a password requirements error from Supabase
+                error_msg_lower = error_msg.lower() if error_msg else ""
+                if "password should contain" in error_msg_lower or "password must contain" in error_msg_lower:
+                    # Return user-friendly password requirements message
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=t("password_requirements_not_met", lang) if t("password_requirements_not_met", lang) != "password_requirements_not_met" 
+                               else "Password must contain at least one lowercase letter, one uppercase letter, one number, and one special character."
+                    )
+                
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=t("failed_to_reset_password", lang)
@@ -782,7 +835,10 @@ async def reset_password(
 
 
 @router.post("/reset-demo-password")
-async def reset_demo_password():
+async def reset_demo_password(
+    request: Request,
+    lang: str = Depends(get_language)
+):
     """
     Temporary endpoint to reset demo user password.
     This should be removed or secured in production.
@@ -816,7 +872,7 @@ async def reset_demo_password():
             
             if update_response.status_code in [200, 201]:
                 return {
-                    "message": "Password reset successfully",
+                    "message": t("password_reset_success", lang),
                     "email": demo_email,
                     "password": demo_password
                 }
@@ -825,7 +881,7 @@ async def reset_demo_password():
                 error_msg = error_data.get("msg", error_data.get("message", update_response.text))
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to reset password: {error_msg}"
+                    detail=t("failed_to_reset_password", lang)
                 )
                 
     except HTTPException:
@@ -833,7 +889,7 @@ async def reset_demo_password():
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to reset password: {str(e)}"
+            detail=t("failed_to_reset_password", lang)
         )
 
 
@@ -985,7 +1041,8 @@ async def update_profile(
                 # Send email confirmation using Admin API generate_link
                 # This is the proper way to send confirmation emails after email change via Admin API
                 frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
-                redirect_to = f"{frontend_url}/verify-email"
+                # Use auth callback route to capture token from Supabase URL
+                redirect_to = f"{frontend_url}/auth/callback"
                 
                 try:
                     # Try using Supabase client to resend confirmation email (like reset password)

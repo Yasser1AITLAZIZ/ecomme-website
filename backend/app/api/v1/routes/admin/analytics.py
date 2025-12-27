@@ -42,7 +42,7 @@ async def get_dashboard_stats(
 
 @router.get("/revenue", response_model=RevenueStats)
 async def get_revenue_stats(
-    period: str = Query("month", regex="^(day|week|month|year)$"),
+    period: str = Query("month", pattern="^(day|week|month|year)$"),
     db: Client = Depends(get_db),
     current_user: UserProfile = Depends(require_admin)
 ):
@@ -149,7 +149,7 @@ async def get_user_analytics(
 
 @router.get("/dashboard-complete")
 async def get_dashboard_complete(
-    period: str = Query("month", regex="^(day|week|month|year)$"),
+    period: str = Query("month", pattern="^(day|week|month|year)$"),
     db: Client = Depends(get_db),
     current_user: UserProfile = Depends(require_admin)
 ):
@@ -180,8 +180,8 @@ async def get_dashboard_complete(
 
 @router.get("/trends")
 async def get_trends(
-    metric: str = Query(..., regex="^(revenue|orders|users)$"),
-    period: str = Query("month", regex="^(day|week|month|year)$"),
+    metric: str = Query(..., pattern="^(revenue|orders|users)$"),
+    period: str = Query("month", pattern="^(day|week|month|year)$"),
     db: Client = Depends(get_db),
     current_user: UserProfile = Depends(require_admin)
 ):

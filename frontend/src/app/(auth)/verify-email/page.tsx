@@ -14,11 +14,19 @@ function VerifyEmailContent() {
   const { t } = useI18n();
   const login = useAuthStore((state) => state.login);
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
-  const [message, setMessage] = useState<string>('Verifying your email...');
+  const [message, setMessage] = useState<string>(t.auth.verifyEmail.verifying);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const verifyEmail = async () => {
+      // Check for error parameter first
+      const errorParam = searchParams.get('error');
+      if (errorParam === 'no_token') {
+        setStatus('error');
+        setError(t.auth.verifyEmail.noTokenFound);
+        return;
+      }
+      
       // Extract token from URL
       // Supabase verification links typically have tokens in the hash or query params
       // Format: ?token=... or #access_token=...&type=signup&token=...
@@ -27,37 +35,36 @@ function VerifyEmailContent() {
       
       // Also check hash fragment (Supabase often puts tokens there)
       let hashToken: string | null = null;
+      let hashType: string | null = null;
       if (typeof window !== 'undefined') {
         const hash = window.location.hash;
         if (hash) {
           const hashParams = new URLSearchParams(hash.substring(1));
           hashToken = hashParams.get('access_token') || hashParams.get('token');
-          const hashType = hashParams.get('type');
-          if (hashType) {
-            // Use hash type if available
-          }
+          hashType = hashParams.get('type');
         }
       }
 
       const verificationToken = token || hashToken;
+      const verificationType = type || hashType || 'signup';
 
       if (!verificationToken) {
         setStatus('error');
-        setError('No verification token found. Please check your email and click the verification link again.');
+        setError(t.auth.verifyEmail.noTokenFound);
         return;
       }
 
       try {
         setStatus('verifying');
-        setMessage('Verifying your email...');
+        setMessage(t.auth.verifyEmail.verifying);
         
-        const response = await authApi.verifyEmail(verificationToken, type);
+        const response = await authApi.verifyEmail(verificationToken, verificationType);
         
         if (response.token && response.user) {
           // Successfully verified and logged in
           await login(response.user, response.token);
           setStatus('success');
-          setMessage(response.message || 'Email verified successfully! You are now logged in.');
+          setMessage(response.message || t.auth.verifyEmail.success);
           
           // Redirect to account page after a short delay
           setTimeout(() => {
@@ -65,19 +72,19 @@ function VerifyEmailContent() {
           }, 2000);
         } else {
           setStatus('error');
-          setError('Email verification failed. Please try again or contact support.');
+          setError(t.auth.verifyEmail.failed);
         }
       } catch (err) {
         setStatus('error');
         if (err instanceof Error) {
           const errMsg = err.message.toLowerCase();
           if (errMsg.includes('expired') || errMsg.includes('invalid')) {
-            setError('The verification link has expired or is invalid. Please request a new verification email.');
+            setError(t.auth.verifyEmail.expired);
           } else {
-            setError(err.message || 'Email verification failed. Please try again.');
+            setError(err.message || t.auth.verifyEmail.failed);
           }
         } else {
-          setError('Email verification failed. Please try again.');
+          setError(t.auth.verifyEmail.failed);
         }
       }
     };
@@ -91,9 +98,9 @@ function VerifyEmailContent() {
         <ScrollReveal>
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold mb-2">
-              Email <span className="text-gold-600">Verification</span>
+              {t.auth.verifyEmail.title} <span className="text-gold-600">{t.auth.verifyEmail.titleHighlight}</span>
             </h1>
-            <p className="text-gray-400">Verifying your email address</p>
+            <p className="text-gray-400">{t.auth.verifyEmail.subtitle}</p>
           </div>
         </ScrollReveal>
 
@@ -110,7 +117,7 @@ function VerifyEmailContent() {
               <div className="text-center">
                 <div className="text-green-500 text-5xl mb-4">✓</div>
                 <p className="text-green-500 text-lg mb-4">{message}</p>
-                <p className="text-gray-400 text-sm">Redirecting to your account...</p>
+                <p className="text-gray-400 text-sm">{t.auth.verifyEmail.redirecting}</p>
               </div>
             )}
 
@@ -124,14 +131,14 @@ function VerifyEmailContent() {
                     onClick={() => router.push('/login')}
                     className="w-full"
                   >
-                    Go to Login
+                    {t.auth.verifyEmail.goToLogin}
                   </Button>
                   <Button
                     variant="secondary"
                     onClick={() => router.push('/register')}
                     className="w-full"
                   >
-                    Back to Register
+                    {t.auth.verifyEmail.backToRegister}
                   </Button>
                 </div>
               </div>

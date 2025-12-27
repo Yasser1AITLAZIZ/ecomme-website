@@ -3,14 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { ShoppingCart, Menu, X, User } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, LogOut } from 'lucide-react';
 import { useCartStore } from '@/lib/store/cartStore';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useUIStore } from '@/lib/store/uiStore';
 import { useI18n } from '@/lib/i18n/context';
 import { Button } from '@/components/ui/Button';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
-import { VoiceSearch } from '@/components/ui/VoiceSearch';
 import { cn } from '@/lib/utils/cn';
 import { motion } from 'framer-motion';
 
@@ -20,6 +19,7 @@ export function Header() {
   const itemCount = useCartStore((state) => state.getItemCount());
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
   const { cartSidebarOpen, mobileMenuOpen, toggleCartSidebar, toggleMobileMenu, closeMobileMenu } = useUIStore();
   const [mounted, setMounted] = useState(false);
 
@@ -28,12 +28,19 @@ export function Header() {
     setMounted(true);
   }, []);
 
+  const handleLogout = async () => {
+    await logout();
+    closeMobileMenu();
+  };
+
   const navLinks = [
     { href: '/', label: t.nav.home },
     { href: '/products', label: t.nav.products },
     { href: '/products?category=iphone', label: t.nav.iphone },
     { href: '/products?category=android', label: t.nav.android },
     { href: '/products?category=accessories', label: t.nav.accessories },
+    { href: '/trade-in', label: (t.nav as any).tradeIn || 'Trade-In' },
+    { href: '/pre-order', label: 'Pre-Order' },
   ];
   
   return (
@@ -78,13 +85,6 @@ export function Header() {
           {/* Right Side Actions */}
           <div className={cn('flex items-center gap-4', isRTL && 'flex-row-reverse')}>
             <LanguageSwitcher />
-            {/* Voice Search - Hidden on mobile for now */}
-            <div className="hidden lg:block">
-              <VoiceSearch onSearch={(query) => {
-                // Navigate to products with search query
-                window.location.href = `/products?search=${encodeURIComponent(query)}`;
-              }} />
-            </div>
             {isAuthenticated ? (
               <Link
                 href="/account"
@@ -176,6 +176,26 @@ export function Header() {
                       {t.nav.signUp}
                     </Button>
                   </Link>
+                </div>
+              )}
+              {isAuthenticated && (
+                <div className={cn('flex flex-col pt-4 border-t border-gold-600/20', isRTL ? 'gap-2' : 'space-y-2')}>
+                  <Link href="/account/profile" onClick={closeMobileMenu}>
+                    <Button variant="ghost" size="sm" className="w-full flex items-center justify-center gap-2">
+                      <User className="w-4 h-4" />
+                      {t.account.profile}
+                    </Button>
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className={cn(
+                      'w-full flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200',
+                      'text-red-400 hover:text-red-500 hover:bg-red-500/10 border border-red-500/20'
+                    )}
+                  >
+                    <LogOut className="w-4 h-4" />
+                    {t.account.logout}
+                  </button>
                 </div>
               )}
             </div>

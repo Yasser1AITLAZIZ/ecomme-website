@@ -171,7 +171,7 @@ export function StoreLocation() {
                       {t.home.location?.contactTitle || 'Contact Us'}
                     </h3>
                     <p className={cn('text-obsidian-200', isRTL && 'text-right')}>
-                      {t.home.location?.phone || 'Phone: +212 XXX XXX XXX'}
+                      {t.home.location?.phone || 'Phone: +212 6 60 66 44 36'}
                     </p>
                   </div>
                 </div>

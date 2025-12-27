@@ -15,7 +15,7 @@ import { ScrollReveal } from '@/components/animations/ScrollReveal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PhoneInput } from '@/components/ui/PhoneInput';
-import { CountrySelect, ProvinceSelect, CitySelect } from '@/components/ui/LocationSelect';
+import { CountrySelect, CitySelect } from '@/components/ui/LocationSelect';
 import { phoneSchema } from '@/lib/validations/phone';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -27,8 +27,9 @@ export default function CheckoutPage() {
   const { isAuthenticated, user } = useAuthStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<string>('MA');
-  const [selectedProvince, setSelectedProvince] = useState<string>('');
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'delivery'>('delivery');
+  const [shippingCost, setShippingCost] = useState<number>(150);
+  const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
 
   // Require authentication to access checkout page
   useEffect(() => {
@@ -53,7 +54,6 @@ export default function CheckoutPage() {
     phone: phoneSchema,
     street: z.string().min(5, t.checkout.street + ' is required'),
     city: z.string().min(2, t.checkout.city + ' is required'),
-    state: z.string().min(2, t.checkout.state + ' is required'),
     zipCode: z.string().min(5, t.checkout.zipCode + ' is required'),
     country: z.string().min(2, t.checkout.country + ' is required'),
   });
@@ -75,9 +75,9 @@ export default function CheckoutPage() {
     },
   });
 
-  // Watch country and state values for cascading dependencies
+  // Watch country and city values
   const watchedCountry = watch('country');
-  const watchedState = watch('state');
+  const watchedCity = watch('city');
 
   // Update selected country when form value changes
   useEffect(() => {
@@ -85,13 +85,6 @@ export default function CheckoutPage() {
       setSelectedCountry(watchedCountry);
     }
   }, [watchedCountry]);
-
-  // Update selected province when form value changes
-  useEffect(() => {
-    if (watchedState) {
-      setSelectedProvince(watchedState);
-    }
-  }, [watchedState]);
 
   // Ensure country is always Morocco
   useEffect(() => {
@@ -101,28 +94,50 @@ export default function CheckoutPage() {
     }
   }, [watchedCountry, setValue]);
 
-  // Reset dependent fields when country changes
+  // Reset city when country changes
   useEffect(() => {
     if (watchedCountry && watchedCountry !== selectedCountry) {
-      setValue('state', '');
       setValue('city', '');
-      setSelectedProvince('');
     }
   }, [watchedCountry, selectedCountry, setValue]);
 
-  // Reset city when province changes
-  useEffect(() => {
-    if (watchedState && watchedState !== selectedProvince && watchedState) {
-      setValue('city', '');
-    }
-  }, [watchedState, selectedProvince, setValue]);
-
   const total = getTotal();
+
+  // Calculate shipping cost when city or order total changes
+  useEffect(() => {
+    if (deliveryType === 'pickup') {
+      setShippingCost(0);
+      return;
+    }
+
+    const city = watchedCity;
+    if (!city || city.length < 2) {
+      // Default fee if no city selected
+      setShippingCost(150);
+      return;
+    }
+
+    // Debounce the API call
+    const timeoutId = setTimeout(async () => {
+      try {
+        setIsCalculatingShipping(true);
+        const result = await ordersApi.calculateShippingByCity(city, total);
+        setShippingCost(result.fee);
+      } catch (error) {
+        console.error('Failed to calculate shipping:', error);
+        // Fallback to default
+        setShippingCost(150);
+      } finally {
+        setIsCalculatingShipping(false);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [watchedCity, total, deliveryType]);
   
-  // Calculate shipping cost based on delivery type
-  // 150 MAD for delivery, 0 for pickup
-  const shippingCost = deliveryType === 'delivery' ? 150 : 0;
-  const finalTotal = total + shippingCost;
+  // Calculate final total
+  const finalShippingCost = deliveryType === 'delivery' ? shippingCost : 0;
+  const finalTotal = total + finalShippingCost;
 
   const onSubmit = async (data: CheckoutFormData) => {
     if (!isAuthenticated) {
@@ -135,7 +150,6 @@ export default function CheckoutPage() {
       const shippingAddress = {
         street: data.street,
         city: data.city,
-        state: data.state,
         zipCode: data.zipCode,
         country: data.country,
       };
@@ -215,7 +229,9 @@ export default function CheckoutPage() {
                       }`}>
                         Livraison
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">150 MAD</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {isCalculatingShipping ? 'Calcul...' : shippingCost === 0 ? 'Gratuit' : `${shippingCost.toFixed(2)} MAD`}
+                      </p>
                     </button>
                     <button
                       type="button"
@@ -302,40 +318,20 @@ export default function CheckoutPage() {
                   </p>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  <Controller
-                    name="state"
-                    control={control}
-                    render={({ field }) => (
-                      <ProvinceSelect
-                        label={t.checkout.state}
-                        error={errors.state?.message}
-                        value={field.value}
-                        onChange={(value) => {
-                          field.onChange(value);
-                          setSelectedProvince(value);
-                        }}
-                        countryCode={selectedCountry}
-                        disabled={!selectedCountry}
-                      />
-                    )}
-                  />
-                  <Controller
-                    name="city"
-                    control={control}
-                    render={({ field }) => (
-                      <CitySelect
-                        label={t.checkout.city}
-                        error={errors.city?.message}
-                        value={field.value}
-                        onChange={field.onChange}
-                        countryCode={selectedCountry}
-                        stateCode={selectedProvince}
-                        disabled={!selectedCountry}
-                      />
-                    )}
-                  />
-                </div>
+                <Controller
+                  name="city"
+                  control={control}
+                  render={({ field }) => (
+                    <CitySelect
+                      label={t.checkout.city}
+                      error={errors.city?.message}
+                      value={field.value}
+                      onChange={field.onChange}
+                      countryCode={selectedCountry}
+                      disabled={!selectedCountry}
+                    />
+                  )}
+                />
 
                 <Input
                   label={t.checkout.zipCode}
@@ -398,10 +394,12 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between text-gray-400">
                   <span>{t.cart.shipping}</span>
-                  {shippingCost === 0 ? (
+                  {isCalculatingShipping ? (
+                    <span className="text-gray-500 text-sm">Calcul...</span>
+                  ) : finalShippingCost === 0 ? (
                     <span className="text-green-400 font-semibold">{t.cart.free}</span>
                   ) : (
-                    <span>{shippingCost.toFixed(2)} MAD</span>
+                    <span>{finalShippingCost.toFixed(2)} MAD</span>
                   )}
                 </div>
                 <div className="flex justify-between text-xl font-bold pt-2 border-t border-gold-600/20">

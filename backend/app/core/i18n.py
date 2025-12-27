@@ -3,8 +3,8 @@ from typing import Optional
 from app.core.messages import MESSAGES
 
 # Supported languages
-SUPPORTED_LANGUAGES = ["en", "fr", "ar"]
-DEFAULT_LANGUAGE = "en"
+SUPPORTED_LANGUAGES = ["en", "fr"]
+DEFAULT_LANGUAGE = "fr"
 
 
 def get_language_from_header(accept_language: Optional[str]) -> str:
@@ -15,7 +15,7 @@ def get_language_from_header(accept_language: Optional[str]) -> str:
         accept_language: Accept-Language header value (e.g., "en-US,en;q=0.9,fr;q=0.8")
     
     Returns:
-        Language code (en, fr, ar) or default if not supported
+        Language code (en, fr) or default if not supported
     """
     if not accept_language:
         return DEFAULT_LANGUAGE
@@ -45,7 +45,7 @@ def t(key: str, lang: str = DEFAULT_LANGUAGE, **kwargs) -> str:
     
     Args:
         key: Message key from MESSAGES dictionary
-        lang: Language code (en, fr, ar)
+        lang: Language code (en, fr)
         **kwargs: Format arguments for message (e.g., email="user@example.com")
     
     Returns:

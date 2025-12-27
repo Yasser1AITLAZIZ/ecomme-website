@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, Package, Settings, Mail, Phone, LayoutDashboard } from 'lucide-react';
+import { User, Package, Settings, Mail, Phone, LayoutDashboard, Smartphone, ShoppingBag } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/authStore';
 import { ScrollReveal } from '@/components/animations/ScrollReveal';
 import { useI18n } from '@/lib/i18n/context';
@@ -36,6 +36,18 @@ export default function AccountPage() {
       label: t.account.myOrders,
       href: '/account/orders',
       description: t.account.myOrdersDesc,
+    },
+    {
+      icon: Smartphone,
+      label: (t as any).account?.myTradeIns || 'My Trade-In Requests',
+      href: '/account/trade-ins',
+      description: (t as any).account?.myTradeInsDesc || 'View your iPhone trade-in requests',
+    },
+    {
+      icon: ShoppingBag,
+      label: 'My Pre-Orders',
+      href: '/account/pre-orders',
+      description: 'View your device pre-order requests',
     },
     {
       icon: Settings,

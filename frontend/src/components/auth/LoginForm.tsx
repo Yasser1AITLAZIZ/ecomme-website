@@ -10,6 +10,8 @@ import { authApi } from '@/lib/api/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useI18n } from '@/lib/i18n/context';
+import { extractErrorMessage } from '@/lib/utils/errorHandler';
+import { createPasswordSchema } from '@/lib/validations/password';
 import Link from 'next/link';
 
 export function LoginForm() {
@@ -22,7 +24,13 @@ export function LoginForm() {
 
   const loginSchema = z.object({
     email: z.string().email(t.checkout.invalidEmail),
-    password: z.string().min(6, t.auth.login.password + ' must be at least 6 characters'),
+    password: createPasswordSchema({
+      minLength: t.errors.passwordMinLength,
+      lowercase: t.errors.passwordLowercase,
+      uppercase: t.errors.passwordUppercase,
+      number: t.errors.passwordNumber,
+      special: t.errors.passwordSpecial,
+    }),
   });
 
   type LoginFormData = z.infer<typeof loginSchema>;
@@ -62,7 +70,7 @@ export function LoginForm() {
       }
       // #endregion
       if (!response.token) {
-        throw new Error('Login failed: No token received');
+        throw new Error(t.auth.login.loginFailed);
       }
       await login(response.user, response.token);
       
@@ -78,12 +86,9 @@ export function LoginForm() {
       }
       // #endregion
       // Backend now returns translated error messages based on Accept-Language header
-      // Use the error message directly from the backend
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError(t.auth.login.loginFailed);
-      }
+      // Use extractErrorMessage to get user-friendly translated message
+      const errorMessage = extractErrorMessage(err);
+      setError(errorMessage || t.auth.login.loginFailed);
     } finally {
       setIsLoading(false);
     }

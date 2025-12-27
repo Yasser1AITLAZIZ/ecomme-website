@@ -49,17 +49,17 @@ export default function Error({
   return (
     <div className="container mx-auto px-4 py-24 text-center">
       <h1 className="text-4xl font-bold mb-4" dir={isRTL ? 'rtl' : 'ltr'}>
-        {t.errors.serverError || 'Something went wrong!'}
+        {t.errors.serverError || t.common.somethingWentWrong}
       </h1>
       <p className="text-gray-400 mb-8" dir={isRTL ? 'rtl' : 'ltr'}>
         {displayMessage}
       </p>
       <div className="flex gap-4 justify-center">
         <Button onClick={reset} variant="primary">
-          {t.common?.tryAgain || 'Try again'}
+          {t.common.tryAgain}
         </Button>
         <Link href="/">
-          <Button variant="outline">{t.nav?.home || 'Go home'}</Button>
+          <Button variant="outline">{t.nav.home || t.common.goHome}</Button>
         </Link>
       </div>
     </div>

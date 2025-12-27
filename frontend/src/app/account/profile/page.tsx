@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/Input';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { Button } from '@/components/ui/Button';
 import { useI18n } from '@/lib/i18n/context';
+import { extractErrorMessage } from '@/lib/utils/errorHandler';
 import { optionalPhoneSchema } from '@/lib/validations/phone';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -70,7 +71,7 @@ export default function ProfilePage() {
       
       // Check if user is still authenticated
       if (!isAuthenticated || !user) {
-        setError('Session expired. Please log in again.');
+        setError(t.common.sessionExpired);
         router.push('/login');
         return;
       }
@@ -104,11 +105,11 @@ export default function ProfilePage() {
       }, 8000); // Show message for 8 seconds
     } catch (err) {
       console.error('Failed to update profile:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update profile. Please try again.';
+      const errorMessage = extractErrorMessage(err);
       
       // If it's an authentication error, redirect to login
       if (errorMessage.includes('401') || errorMessage.includes('Unauthorized') || errorMessage.includes('Not authenticated')) {
-        setError('Session expired. Redirecting to login...');
+        setError(t.common.sessionExpiredRedirecting);
         setTimeout(() => {
           router.push('/login');
         }, 2000);

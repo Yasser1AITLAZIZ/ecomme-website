@@ -13,9 +13,9 @@ export default function ForgotPasswordPage() {
         <ScrollReveal>
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold mb-2">
-              Reset <span className="text-gold-600">Password</span>
+              {t.auth.forgotPassword.title} <span className="text-gold-600">{t.auth.forgotPassword.titleHighlight}</span>
             </h1>
-            <p className="text-gray-400">Enter your email to receive a password reset link</p>
+            <p className="text-gray-400">{t.auth.forgotPassword.subtitle}</p>
           </div>
         </ScrollReveal>
 

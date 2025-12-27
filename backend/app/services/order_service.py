@@ -9,6 +9,7 @@ from app.database import get_supabase_client
 from app.core.exceptions import NotFoundError
 from app.services.cart_service import CartService
 from app.services.stock_service import StockService
+from app.services.delivery_fee_service import DeliveryFeeService
 
 
 class OrderService:
@@ -19,6 +20,7 @@ class OrderService:
         self.db = db or get_supabase_client()
         self.cart_service = CartService(db)
         self.stock_service = StockService(db)
+        self.delivery_fee_service = DeliveryFeeService(db)
     
     def generate_order_number(self) -> str:
         """
@@ -89,11 +91,20 @@ class OrderService:
         )
         
         # Calculate shipping cost based on delivery_type
-        # 150 MAD for delivery, 0 for pickup
-        if delivery_type == 'delivery':
-            shipping_cost = Decimal("150.00")
-        else:  # pickup
+        if delivery_type == 'pickup':
             shipping_cost = Decimal("0.00")
+        else:  # delivery
+            # Use city-based shipping fee calculation
+            city = shipping_address.get('city', '')
+            if city:
+                fee_result = self.delivery_fee_service.calculate_delivery_fee_by_city(
+                    city=city,
+                    order_total=float(subtotal)
+                )
+                shipping_cost = Decimal(str(fee_result.get("fee", 150.0)))
+            else:
+                # Fallback to default if no city provided
+                shipping_cost = Decimal("150.00")
         
         # Legacy shipping method support (if provided, use it instead)
         if shipping_method_id:
